@@ -1,0 +1,54 @@
+# =========================
+# Security & Secrets (CRITICAL)
+# =========================
+.env
+.env.local
+.env.*.local
+*.pem
+secrets/
+
+# =========================
+# Database & Docker Volumes
+# =========================
+*.db
+*.sqlite3
+postgres_data/
+
+# =========================
+# Uploads, Scraper Data & Logs
+# =========================
+*.csv
+*.xlsx
+logs/
+*.log
+temp/
+
+# =========================
+# Python & FastAPI Backend
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.pytest_cache/
+
+# =========================
+# Next.js & Node Frontend
+# =========================
+node_modules/
+.next/
+out/
+build/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp.*
+
+# =========================
+# OS & IDE
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
