@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     # Database Settings (matches docker-compose.yml)
     POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", "localhost")
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
-    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "admin")
-    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "adminpassword")
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
+    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "")
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "academic_intelligence")
 
     # Redis Settings
@@ -18,8 +18,11 @@ class Settings(BaseSettings):
     REDIS_PORT: str = os.getenv("REDIS_PORT", "6379")
 
     # Security
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "super-secret-academic-key-change-in-production")
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "replace_this_in_production")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 1 day
+
+    # API Keys
+    GROQ_API_KEY: str | None = None
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:

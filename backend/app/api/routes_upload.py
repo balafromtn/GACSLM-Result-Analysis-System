@@ -43,7 +43,7 @@ async def upload_student_data(
     records = df.to_dict(orient="records")
     
     # <-- TRIGGER THE BACKGROUND SCRAPER HERE -->
-    background_tasks.add_task(process_student_batch, workspace.id, records, db)
+    background_tasks.add_task(process_student_batch, workspace.id, records)
     
     return {
         "status": "success",

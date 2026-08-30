@@ -28,3 +28,4 @@ passlib[bcrypt]>=1.7.4
 
 # Environment & Utilities
 python-dotenv>=1.0.1
+groq>=0.4.2

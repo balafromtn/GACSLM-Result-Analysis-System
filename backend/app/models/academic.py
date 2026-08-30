@@ -25,8 +25,9 @@ class Student(Base):
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
     register_number = Column(String, nullable=False, index=True)
     name = Column(String, nullable=True)
-    
-    # We DO NOT store Date of Birth here to adhere to the privacy-first model!
+    gender = Column(String, nullable=True)
+    dob = Column(String, nullable=True) # Confidential DOB stored per user request
+    degree_branch = Column(String, nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -40,8 +41,13 @@ class SemesterResult(Base):
     id = Column(String, primary_key=True, default=generate_uuid, index=True)
     student_id = Column(String, ForeignKey("students.id"), nullable=False)
     semester_number = Column(Integer, nullable=False)
+    semester_roman = Column(String, nullable=True)
+    exam_month_year = Column(String, nullable=True)
+    
     sgpa = Column(Float, nullable=True)
     cgpa = Column(Float, nullable=True)
+    total_score = Column(Integer, nullable=True)
+    average_score = Column(Float, nullable=True)
     arrear_count = Column(Integer, default=0)
     status = Column(String, nullable=False) # e.g., "PASS", "FAIL"
     

@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from app.models.academic import Student, SemesterResult, SubjectScore
+from app.core.database import SessionLocal
 import logging
 from scraper_engine.scraper import scrape_student, create_driver
 from scraper_engine.parser import parse_html_table
@@ -7,24 +8,31 @@ from scraper_engine.parser import parse_html_table
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def process_student_batch(workspace_id: str, records: list[dict], db: Session):
+def process_student_batch(workspace_id: str, records: list[dict]):
     logger.info(f"Starting background scraping for workspace {workspace_id}")
 
     # 1. Initialize the Selenium WebDriver ONCE for the whole batch
     driver = create_driver(headless=True)
+    db = SessionLocal()
 
     try:
         for record in records:
             reg_no = record.get("reg_no")
             dob = record.get("dob")
             name = record.get("name", "Unknown")
+            gender = record.get("gender", "Unknown")
 
             if not reg_no or not dob:
                 continue
 
             try:
                 # Save Student (Privacy First: No DOB saved!)
-                db_student = Student(workspace_id=workspace_id, register_number=str(reg_no), name=str(name))
+                db_student = Student(
+                    workspace_id=workspace_id, 
+                    register_number=str(reg_no), 
+                    name=str(name),
+                    gender=str(gender)
+                )
                 db.add(db_student)
                 db.commit()
                 db.refresh(db_student)
@@ -42,11 +50,26 @@ def process_student_batch(workspace_id: str, records: list[dict], db: Session):
 
                 # 4. Save to PostgreSQL
                 for sem_data in scraped_data:
+                    # Update student with newly parsed details if available
+                    if sem_data.get('dob') and sem_data.get('dob') != 'UNKNOWN':
+                        db_student.dob = sem_data.get('dob')
+                    else:
+                        db_student.dob = dob # Fallback to CSV dob
+                        
+                    if sem_data.get('degree_branch') and sem_data.get('degree_branch') != 'UNKNOWN':
+                        db_student.degree_branch = sem_data.get('degree_branch')
+                        
+                    db.commit()
+
                     db_semester = SemesterResult(
                         student_id=db_student.id,
-                        semester_number=sem_data.get('semester_number'),
+                        semester_number=sem_data.get('semester_number', 1),
+                        semester_roman=sem_data.get('semester_roman'),
+                        exam_month_year=sem_data.get('exam_month_year'),
                         sgpa=sem_data.get('sgpa'),
                         cgpa=sem_data.get('cgpa'),
+                        total_score=sem_data.get('total_score'),
+                        average_score=sem_data.get('average_score'),
                         status=sem_data.get('status', 'UNKNOWN')
                     )
                     db.add(db_semester)
@@ -77,4 +100,5 @@ def process_student_batch(workspace_id: str, records: list[dict], db: Session):
     finally:
         # ALWAYS quit the driver when the batch is done to prevent memory leaks!
         driver.quit()
-        logger.info(f"Finished processing workspace {workspace_id}. Browser closed.")
+        db.close()
+        logger.info(f"Finished processing workspace {workspace_id}. Browser and DB session closed.")

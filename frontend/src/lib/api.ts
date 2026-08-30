@@ -10,7 +10,6 @@ export async function uploadStudentCsv(workspaceName: string, file: File) {
   const formData = new FormData();
   formData.append('file', file);
 
-  // Send workspace_name as a query parameter (?workspace_name=...) to match FastAPI
   const response = await apiClient.post(`/upload?workspace_name=${encodeURIComponent(workspaceName)}`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
@@ -29,5 +28,40 @@ export async function getWorkspaceSummary(workspaceId: string | number) {
 export async function getWorkspaceStudents(workspaceId: string | number) {
   const encodedId = encodeURIComponent(workspaceId.toString());
   const response = await apiClient.get(`/analytics/${encodedId}/students`);
+  return response.data;
+}
+
+export async function getWorkspaceSubjects(workspaceId: string | number) {
+  const encodedId = encodeURIComponent(workspaceId.toString());
+  const response = await apiClient.get(`/analytics/${encodedId}/subjects`);
+  return response.data;
+}
+
+export async function getWorkspaceDistribution(workspaceId: string | number) {
+  const encodedId = encodeURIComponent(workspaceId.toString());
+  const response = await apiClient.get(`/analytics/${encodedId}/distribution`);
+  return response.data;
+}
+
+export async function getWorkspaceInsights(workspaceId: string | number) {
+  const encodedId = encodeURIComponent(workspaceId.toString());
+  const response = await apiClient.get(`/analytics/${encodedId}/insights`);
+  return response.data;
+}
+
+export async function getStudentDetails(studentId: string | number) {
+  const response = await apiClient.get(`/analytics/student/${studentId}`);
+  return response.data;
+}
+
+export async function getPassFailDistribution(workspaceId: string | number) {
+  const encodedId = encodeURIComponent(workspaceId.toString());
+  const response = await apiClient.get(`/analytics/${encodedId}/pass-fail`);
+  return response.data;
+}
+
+export async function getGenderPerformance(workspaceId: string | number) {
+  const encodedId = encodeURIComponent(workspaceId.toString());
+  const response = await apiClient.get(`/analytics/${encodedId}/gender-performance`);
   return response.data;
 }

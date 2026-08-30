@@ -7,6 +7,7 @@ Supports two table layouts:
   - New (SLMGACCOE): 7 cols, colon-separated text in <strong>, no table id
 """
 
+import re
 from bs4 import BeautifulSoup, Tag
 import logging
 
@@ -17,20 +18,20 @@ TABLE_IDS = ["exam_datail", "exam_detail", "result_table"]
 # Header labels (case-insensitive matching)
 NAME_LABELS = ["name of the candidate", "name of the student"]
 REGNO_LABELS = ["register number", "register no", "reg no"]
+DEGREE_LABELS = ["degree", "programme", "branch"]
+DOB_LABELS = ["dob", "date of birth"]
+MONTH_YEAR_LABELS = ["month", "year", "exam"]
+SEM_LABELS = ["semester", "sem"]
 SUBJECT_HEADERS = ["course code", "subject code", "sub-code", "sub code"]
 
-
 def _find_table(soup: BeautifulSoup) -> Tag | None:
-    """Locate the result table by known IDs, then fallback to first <table>."""
     for tid in TABLE_IDS:
         t = soup.find("table", id=tid)
         if t:
             return t
     return soup.find("table")
 
-
 def _extract_after_colon(text: str, label: str) -> str | None:
-    """Extract value after 'label:' in text. Case-insensitive."""
     lower = text.lower()
     idx = lower.find(label.lower() + ":")
     if idx == -1:
@@ -41,9 +42,7 @@ def _extract_after_colon(text: str, label: str) -> str | None:
     val = val.strip().strip(":")
     return val if val else None
 
-
 def _extract_after_br(html: str) -> str | None:
-    """Extract text after <br> tag inside a <strong> element."""
     if "<br" not in html:
         return None
     parts = html.split("<br", 1)
@@ -56,21 +55,7 @@ def _extract_after_br(html: str) -> str | None:
     val = val.replace("</strong", "").strip()
     return val if val else None
 
-
 def parse_result_html(html: str) -> dict | None:
-    """
-    Parse raw HTML of one student's result table.
-
-    Args:
-        html: Raw HTML string containing the result table.
-
-    Returns:
-        Dictionary with keys:
-            - register_no: str
-            - name: str
-            - subjects: dict {subject_code: marks_str, ...}
-        Returns None if parsing fails.
-    """
     try:
         soup = BeautifulSoup(html, "html.parser")
         table = _find_table(soup)
@@ -80,87 +65,125 @@ def parse_result_html(html: str) -> dict | None:
 
         name = "UNKNOWN"
         register_no = "UNKNOWN"
-        sub_code_idx = 1  # default for new portal (Course Code at col 1)
+        degree_branch = "UNKNOWN"
+        dob = "UNKNOWN"
+        exam_month_year = "UNKNOWN"
+        semester_roman = "UNKNOWN"
+        
+        sub_code_idx = 0
+        sub_name_idx = 1
+        int_idx = -1
+        ext_idx = -1
+        tot_idx = -1
+        res_idx = -1
 
-        # Scan all header rows (thead > tr, or all tr)
         thead = table.find("thead")
         rows = thead.find_all("tr") if thead else table.find_all("tr")
 
         for row in rows:
-            # Check <strong> elements for student info
             for strong in row.find_all("strong"):
                 text = strong.get_text(separator=" ").strip()
                 text_lower = text.lower()
 
                 for label in NAME_LABELS:
                     if label in text_lower:
-                        val = _extract_after_colon(text, label)
-                        if val:
-                            name = val
-                        if not val or name == "UNKNOWN":
-                            val = _extract_after_br(str(strong))
-                            if val:
-                                name = val
+                        val = _extract_after_colon(text, label) or _extract_after_br(str(strong))
+                        if val: name = val
                         break
 
                 for label in REGNO_LABELS:
                     if label in text_lower:
-                        val = _extract_after_colon(text, label)
-                        if val:
-                            register_no = val
-                        if not val or register_no == "UNKNOWN":
-                            val = _extract_after_br(str(strong))
-                            if val:
-                                register_no = val
+                        val = _extract_after_colon(text, label) or _extract_after_br(str(strong))
+                        if val: register_no = val
+                        break
+                        
+                for label in DEGREE_LABELS:
+                    if label in text_lower:
+                        val = _extract_after_colon(text, label) or _extract_after_br(str(strong))
+                        if val: degree_branch = val
+                        break
+                        
+                for label in DOB_LABELS:
+                    if label in text_lower:
+                        val = _extract_after_colon(text, label) or _extract_after_br(str(strong))
+                        if val: dob = val
+                        break
+                        
+                for label in MONTH_YEAR_LABELS:
+                    if label in text_lower and ("month" in text_lower or "year" in text_lower):
+                        val = _extract_after_colon(text, label) or _extract_after_br(str(strong))
+                        if val: exam_month_year = val
+                        break
+                        
+                for label in SEM_LABELS:
+                    if label in text_lower:
+                        val = _extract_after_colon(text, label) or _extract_after_br(str(strong))
+                        if val: semester_roman = val
                         break
 
-            # Check <th> elements for column headers to detect layout
-            for th in row.find_all("th"):
+            # Find column indices dynamically
+            all_ths = row.find_all(["th", "td"])
+            for i, th in enumerate(all_ths):
                 th_text = th.get_text(strip=True).lower()
-                for header in SUBJECT_HEADERS:
-                    if header in th_text:
-                        # Found the "Course Code" header - count its position
-                        all_ths = row.find_all("th")
-                        for i, t in enumerate(all_ths):
-                            if header in t.get_text(strip=True).lower():
-                                sub_code_idx = i
-                                break
-                        break
+                if "course code" in th_text or "subject code" in th_text or "sub code" in th_text: sub_code_idx = i
+                elif "course title" in th_text or "subject name" in th_text or "title" in th_text: sub_name_idx = i
+                elif "internal" in th_text or "int" in th_text: int_idx = i
+                elif "external" in th_text or "ext" in th_text: ext_idx = i
+                elif "total" in th_text or "tot" in th_text: tot_idx = i
+                elif "result" in th_text or "status" in th_text: res_idx = i
 
-        # Extract subject rows
+        # Fallback for indices if not found in headers
+        if tot_idx == -1: tot_idx = -2
+        if res_idx == -1: res_idx = -1
+
         subjects = {}
         tbody = table.find("tbody")
-        data_rows = (
-            tbody.find_all("tr")
-            if tbody
-            else [r for r in table.find_all("tr") if r.find("td")]
-        )
+        data_rows = tbody.find_all("tr") if tbody else [r for r in table.find_all("tr") if r.find("td")]
 
         for row in data_rows:
             cols = row.find_all("td")
-            if len(cols) < 6:
-                continue
+            if len(cols) < 5: continue # Need at least a few columns
 
-            # Subject code at detected column index
             if sub_code_idx < len(cols):
                 subject_code = cols[sub_code_idx].get_text(strip=True)
             else:
                 continue
-            if not subject_code:
-                continue
+                
+            if not subject_code or subject_code.lower() == "course code": continue
 
-            # TOTAL is second from last column, RESULT is last
-            total_col = cols[-2]
-            marks = total_col.get_text(strip=True)
+            subject_name = cols[sub_name_idx].get_text(strip=True) if sub_name_idx < len(cols) else "Unknown"
+            internal = cols[int_idx].get_text(strip=True) if int_idx != -1 and int_idx < len(cols) else "0"
+            external = cols[ext_idx].get_text(strip=True) if ext_idx != -1 and ext_idx < len(cols) else "0"
+            total = cols[tot_idx].get_text(strip=True) if tot_idx < len(cols) else "0"
+            result_str = cols[res_idx].get_text(strip=True) if res_idx < len(cols) else "Unknown"
 
-            if not marks or marks == "-" or marks.lower() in ("ab", "absent"):
-                marks = "-"
+            if not total or total == "-" or total.lower() in ("ab", "absent", "aaa"):
+                total = "-"
+                
+            if "pass" in result_str.lower():
+                status = "PASS"
+            elif "ra" in result_str.lower() or "fail" in result_str.lower():
+                status = "FAIL"
+            elif "aaa" in result_str.lower() or "ab" in result_str.lower():
+                status = "ABSENT"
+            else:
+                status = result_str
 
-            subjects[subject_code] = marks
+            subjects[subject_code] = {
+                "name": subject_name,
+                "internal": internal,
+                "external": external,
+                "total": total,
+                "status": status
+            }
 
         result = {
             "register_no": register_no,
             "name": name,
+            "degree_branch": degree_branch,
+            "dob": dob,
+            "exam_month_year": exam_month_year,
+            "semester_roman": semester_roman,
             "subjects": subjects,
         }
 
@@ -171,43 +194,74 @@ def parse_result_html(html: str) -> dict | None:
         logger.error(f"Failed to parse HTML: {e}")
         return None
 
+def get_grade(marks: int) -> str:
+    if marks >= 90: return "O"
+    if marks >= 80: return "A+"
+    if marks >= 70: return "A"
+    if marks >= 60: return "B+"
+    if marks >= 50: return "B"
+    if marks >= 40: return "C"
+    return "U"
+
+def get_gpa_points(marks: int) -> float:
+    if marks >= 90: return 10.0
+    if marks >= 80: return 9.0
+    if marks >= 70: return 8.0
+    if marks >= 60: return 7.0
+    if marks >= 50: return 6.0
+    if marks >= 40: return 5.0
+    return 0.0
+
 def parse_html_table(html_content: str) -> list[dict]:
-    """
-    Adapter to convert parse_result_html output into the list of semesters 
-    expected by the background scraper task.
-    """
     parsed_data = parse_result_html(html_content)
     
     if not parsed_data:
         return []
         
     subjects_list = []
-    overall_status = "Pass"
+    overall_status = "PASS"
+    total_score = 0
+    total_subjects = 0
+    total_gpa_points = 0.0
     
-    # Map your dictionary of subjects to the database format
-    for code, marks_str in parsed_data.get("subjects", {}).items():
-        # Clean up the marks safely for the database
-        marks = int(marks_str) if str(marks_str).isdigit() else 0
-        status = "Fail" if marks_str == "-" or marks < 40 else "Pass"
+    for code, details in parsed_data.get("subjects", {}).items():
+        marks_str = details["total"]
+        subject_name = details["name"]
         
-        if status == "Fail":
-            overall_status = "Fail"
+        marks = int(marks_str) if str(marks_str).isdigit() else 0
+        status = details["status"]
+        grade = get_grade(marks) if marks_str != "-" else "U"
+        
+        if status != "PASS":
+            overall_status = "FAIL"
+            
+        total_score += marks
+        total_subjects += 1
+        total_gpa_points += get_gpa_points(marks)
             
         subjects_list.append({
             "subject_code": code,
-            "subject_name": "Subject Name", # Can be extracted later
-            "internal_marks": 0,
-            "external_marks": 0,
+            "subject_name": subject_name,
+            "internal_marks": int(details["internal"]) if str(details["internal"]).isdigit() else 0,
+            "external_marks": int(details["external"]) if str(details["external"]).isdigit() else 0,
             "total_marks": marks,
-            "grade": "N/A",
+            "grade": grade,
             "status": status
         })
         
-    # Wrap it in the semester structure the database expects
+    average_score = round(total_score / total_subjects, 2) if total_subjects > 0 else 0.0
+    sgpa = round(total_gpa_points / total_subjects, 2) if total_subjects > 0 else 0.0
+        
     return [{
-        "semester_number": 1, # Placeholder
-        "sgpa": 0.0,          # Can be calculated later
-        "cgpa": 0.0,
+        "semester_number": 1,
+        "semester_roman": parsed_data.get("semester_roman"),
+        "exam_month_year": parsed_data.get("exam_month_year"),
+        "degree_branch": parsed_data.get("degree_branch"),
+        "dob": parsed_data.get("dob"),
+        "sgpa": sgpa,
+        "cgpa": sgpa,
+        "total_score": total_score,
+        "average_score": average_score,
         "status": overall_status,
         "subjects": subjects_list
     }]
