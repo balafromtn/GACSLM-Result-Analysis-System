@@ -20,7 +20,14 @@ export async function uploadStudentCsv(workspaceName: string, file: File) {
   return response.data;
 }
 
-export async function getWorkspaceSummary(workspaceId: string) {
-  const response = await apiClient.get(`/analytics/${workspaceId}/summary`);
+export async function getWorkspaceSummary(workspaceId: string | number) {
+  const encodedId = encodeURIComponent(workspaceId.toString());
+  const response = await apiClient.get(`/analytics/${encodedId}/summary`);
+  return response.data;
+}
+
+export async function getWorkspaceStudents(workspaceId: string | number) {
+  const encodedId = encodeURIComponent(workspaceId.toString());
+  const response = await apiClient.get(`/analytics/${encodedId}/students`);
   return response.data;
 }

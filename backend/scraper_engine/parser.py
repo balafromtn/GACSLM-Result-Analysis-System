@@ -170,3 +170,44 @@ def parse_result_html(html: str) -> dict | None:
     except Exception as e:
         logger.error(f"Failed to parse HTML: {e}")
         return None
+
+def parse_html_table(html_content: str) -> list[dict]:
+    """
+    Adapter to convert parse_result_html output into the list of semesters 
+    expected by the background scraper task.
+    """
+    parsed_data = parse_result_html(html_content)
+    
+    if not parsed_data:
+        return []
+        
+    subjects_list = []
+    overall_status = "Pass"
+    
+    # Map your dictionary of subjects to the database format
+    for code, marks_str in parsed_data.get("subjects", {}).items():
+        # Clean up the marks safely for the database
+        marks = int(marks_str) if str(marks_str).isdigit() else 0
+        status = "Fail" if marks_str == "-" or marks < 40 else "Pass"
+        
+        if status == "Fail":
+            overall_status = "Fail"
+            
+        subjects_list.append({
+            "subject_code": code,
+            "subject_name": "Subject Name", # Can be extracted later
+            "internal_marks": 0,
+            "external_marks": 0,
+            "total_marks": marks,
+            "grade": "N/A",
+            "status": status
+        })
+        
+    # Wrap it in the semester structure the database expects
+    return [{
+        "semester_number": 1, # Placeholder
+        "sgpa": 0.0,          # Can be calculated later
+        "cgpa": 0.0,
+        "status": overall_status,
+        "subjects": subjects_list
+    }]
