@@ -54,6 +54,9 @@ academic-intelligence-system/
 │   └── tailwind.config.ts
 ├── docker-compose.yml
 └── .gitignore
+
+```
+
 🚀 Getting Started
 1. Prerequisites
 Ensure you have the following installed on your machine:
