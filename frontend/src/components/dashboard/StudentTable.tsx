@@ -12,7 +12,7 @@ export default function StudentTable({ students }: { students: any[] }) {
   const subjectColumns = useMemo(() => {
     const subs = new Map();
     students?.forEach(student => {
-      student.semesters?.[0]?.subjects?.forEach((sub: any) => {
+      student.subjects?.forEach((sub: any) => {
         subs.set(sub.code, sub.name);
       });
     });
@@ -67,14 +67,13 @@ export default function StudentTable({ students }: { students: any[] }) {
               ))}
               
               <th className="p-4 font-semibold text-center border-l border-slate-200 dark:border-slate-800">Overall %</th>
-              <th className="p-4 font-semibold text-center">Grading</th>
+              <th className="p-4 font-semibold text-center">Backlogs</th>
               <th className="p-4 font-semibold text-center">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-800/50">
             {filteredStudents.map((student, idx) => {
-              const sem = student.semesters?.[0] || {};
-              const subjectsMap = new Map(sem.subjects?.map((s: any) => [s.code, s]) || []);
+              const subjectsMap = new Map(student.subjects?.map((s: any) => [s.code, s]) || []);
               
               return (
                 <tr 
@@ -109,20 +108,21 @@ export default function StudentTable({ students }: { students: any[] }) {
                   })}
                   
                   <td className="p-4 text-center font-bold text-slate-700 dark:text-slate-200 border-l border-slate-100 dark:border-slate-800/50">
-                    {sem.average_score || 0}%
+                    {student.average || 0}%
                   </td>
                   <td className="p-4 text-center">
-                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                      sem.average_score >= 90 ? 'bg-amber-100 dark:bg-amber-400/20 text-amber-600 dark:text-amber-400' :
-                      sem.average_score >= 80 ? 'bg-emerald-100 dark:bg-emerald-400/20 text-emerald-600 dark:text-emerald-400' :
-                      sem.average_score >= 60 ? 'bg-blue-100 dark:bg-blue-400/20 text-blue-600 dark:text-blue-400' :
-                      'bg-rose-100 dark:bg-rose-400/20 text-rose-600 dark:text-rose-400'
-                    }`}>
-                      {sem.average_score >= 90 ? 'O' : sem.average_score >= 80 ? 'A+' : sem.average_score >= 70 ? 'A' : sem.average_score >= 60 ? 'B+' : sem.average_score >= 50 ? 'B' : sem.average_score >= 40 ? 'C' : 'U'}
-                    </span>
+                    {student.backlog_count > 0 ? (
+                      <span className="px-2 py-0.5 rounded text-xs font-bold bg-red-100 dark:bg-red-400/20 text-red-600 dark:text-red-400" title={student.backlog_subjects.join(', ')}>
+                        {student.backlog_count} Pending
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-500">
+                        None
+                      </span>
+                    )}
                   </td>
                   <td className="p-4 text-center">
-                    {sem.status?.toUpperCase() === 'PASS' ? (
+                    {student.status?.toUpperCase() === 'PASS' ? (
                       <span className="text-emerald-500 dark:text-emerald-400 text-xs font-bold">PASS</span>
                     ) : (
                       <span className="text-rose-500 dark:text-rose-400 text-xs font-bold">FAIL</span>

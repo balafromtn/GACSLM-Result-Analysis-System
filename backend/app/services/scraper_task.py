@@ -22,6 +22,8 @@ def process_student_batch(workspace_id: str, records: list[dict]):
             name = record.get("name", "Unknown")
             gender = record.get("gender", "Unknown")
 
+            community = record.get("community", "Unknown")
+
             if not reg_no or not dob:
                 continue
 
@@ -31,7 +33,8 @@ def process_student_batch(workspace_id: str, records: list[dict]):
                     workspace_id=workspace_id, 
                     register_number=str(reg_no), 
                     name=str(name),
-                    gender=str(gender)
+                    gender=str(gender),
+                    community=str(community)
                 )
                 db.add(db_student)
                 db.commit()
@@ -39,10 +42,16 @@ def process_student_batch(workspace_id: str, records: list[dict]):
 
                 # 2. Call the Scraper WITH the driver!
                 logger.info(f"Scraping results for {reg_no}...")
+                db_student.scraping_status = "scraping"
+                db.commit()
+                
                 table_html = scrape_student(driver, reg_no, dob) 
                 
                 if not table_html:
                     logger.warning(f"No data returned for {reg_no}")
+                    db_student.scraping_status = "failed"
+                    db_student.scraping_error = "No data returned from portal"
+                    db.commit()
                     continue
 
                 # 3. Parse the raw HTML into the dictionary structure
@@ -90,12 +99,24 @@ def process_student_batch(workspace_id: str, records: list[dict]):
                         )
                         db.add(db_subject)
                 
+                db_student.scraping_status = "completed"
                 db.commit()
                 logger.info(f"Successfully saved {reg_no} to PostgreSQL!")
 
             except Exception as e:
                 logger.error(f"Failed to process {reg_no}: {str(e)}")
                 db.rollback()
+                
+                # Mark as failed in a new transaction
+                try:
+                    db_student = db.query(Student).filter_by(workspace_id=workspace_id, register_number=str(reg_no)).first()
+                    if db_student:
+                        db_student.scraping_status = "failed"
+                        db_student.scraping_error = str(e)
+                        db.commit()
+                except Exception as inner_e:
+                    logger.error(f"Failed to update error status for {reg_no}: {str(inner_e)}")
+                    db.rollback()
     
     finally:
         # ALWAYS quit the driver when the batch is done to prevent memory leaks!

@@ -11,7 +11,8 @@ class Workspace(Base):
     __tablename__ = "workspaces"
 
     id = Column(String, primary_key=True, default=generate_uuid, index=True)
-    name = Column(String, nullable=False)  # e.g., "B.Sc CS - 2024-2027"
+    workspace_key = Column(String, unique=True, index=True, nullable=False) # e.g., "2024_BSC_CS_SEM5"
+    name = Column(String, nullable=False)  # Display name
     owner_id = Column(String, nullable=False, index=True) # ID of the Tutor/HOD
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -26,8 +27,13 @@ class Student(Base):
     register_number = Column(String, nullable=False, index=True)
     name = Column(String, nullable=True)
     gender = Column(String, nullable=True)
+    community = Column(String, nullable=True)
     dob = Column(String, nullable=True) # Confidential DOB stored per user request
     degree_branch = Column(String, nullable=True)
+    
+    # Scraping tracking
+    scraping_status = Column(String, default="pending") # pending, scraping, completed, failed, retrying
+    scraping_error = Column(String, nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

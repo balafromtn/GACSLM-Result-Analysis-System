@@ -15,7 +15,7 @@ export async function uploadStudentCsv(workspaceName: string, file: File) {
       'Content-Type': 'multipart/form-data',
     },
   });
-  
+
   return response.data;
 }
 
@@ -63,5 +63,22 @@ export async function getPassFailDistribution(workspaceId: string | number) {
 export async function getGenderPerformance(workspaceId: string | number) {
   const encodedId = encodeURIComponent(workspaceId.toString());
   const response = await apiClient.get(`/analytics/${encodedId}/gender-performance`);
+  return response.data;
+}
+
+export async function getScrapingStatus(workspaceId: string) {
+  const response = await apiClient.get(`/workspace/${encodeURIComponent(workspaceId)}/status`);
+  return response.data;
+}
+
+export async function getCommunityPerformance(workspaceId: string | number) {
+  const encodedId = encodeURIComponent(workspaceId.toString());
+  const response = await apiClient.get(`/analytics/${encodedId}/community`);
+  return response.data;
+}
+
+export async function getWorkspaceChat(workspaceId: string | number, query: string) {
+  const encodedId = encodeURIComponent(workspaceId.toString());
+  const response = await apiClient.post(`/analytics/${encodedId}/chat`, { query });
   return response.data;
 }
