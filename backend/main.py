@@ -27,6 +27,7 @@ from collections import deque
 from scraper import create_driver, scrape_student
 from parser import parse_result_html
 from exporter import build_dataframe, export_to_excel_bytes
+from report_generator import generate_report_html
 
 # ── Logging setup (file + console + in-memory ring buffer) ───────
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -231,6 +232,7 @@ async def start_scraping():
         state["success"] = []
         state["results"] = []
         state["excel_bytes"] = None
+        state["report_html"] = None
 
     with log_buffer_lock:
         log_buffer.clear()
@@ -293,7 +295,8 @@ def _scrape_all():
             if state["results"]:
                 df = build_dataframe(state["results"])
                 state["excel_bytes"] = export_to_excel_bytes(df)
-                logger.info(f"📊 Excel generated — {len(state['results'])} students, {len(df.columns) - 3} subjects")
+                state["report_html"] = generate_report_html(state["results"])
+                logger.info(f"📊 Excel and Report generated — {len(state['results'])} students, {len(df.columns) - 3} subjects")
             else:
                 logger.warning("⚠ No successful results to export")
 
@@ -358,7 +361,22 @@ async def download_excel():
     return Response(
         content=excel_bytes,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=student_results.xlsx"},
+        headers={"Content-Disposition": 'attachment; filename="student_results.xlsx"'}
+    )
+
+
+@app.get("/report")
+async def download_report():
+    """Return the generated HTML dashboard."""
+    with state_lock:
+        report_html = state["report_html"]
+
+    if not report_html:
+        raise HTTPException(status_code=404, detail="No report available. Run scraping first.")
+
+    return Response(
+        content=report_html,
+        media_type="text/html",
     )
 
 

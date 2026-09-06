@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Semester Result Analysis - {{ degree_branch }}</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 15px;
+    color: white;
+}
+
+.header h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.header p { font-size: 1.2em; opacity: 0.9; }
+.header .meta-row { font-size: 0.95em; opacity: 0.85; margin-top: 8px; }
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+    color: white;
+    padding: 25px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    transform: translateY(0);
+    transition: transform 0.3s ease;
+}
+.stat-card:hover { transform: translateY(-5px); }
+.stat-card h3 { font-size: 2.2em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); }
+.stat-card p { font-size: 1.05em; opacity: 0.9; }
+
+.stat-card.blue { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+.stat-card.green { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+.stat-card.gold { background: linear-gradient(135deg, #f6d365, #fda085); }
+.stat-card.red { background: linear-gradient(135deg, #eb3349, #f45c43); }
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 40px;
+}
+@media (max-width: 768px) { .charts-grid { grid-template-columns: 1fr; } }
+
+.chart-container {
+    background: white;
+    padding: 25px;
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+.chart-container h3 { text-align: center; margin-bottom: 20px; color: #333; font-size: 1.3em; }
+.chart-container .note { text-align: center; font-size: 0.82em; color: #888; margin-top: 12px; }
+
+.section-title {
+    margin: 0 0 20px;
+    color: white;
+    font-size: 1.6em;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+}
+
+.table-container {
+    background: white;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    margin-bottom: 40px;
+}
+
+.table-header {
+    background: linear-gradient(135deg, #4facfe, #00f2fe);
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
+.table-header h3 { font-size: 1.5em; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3); }
+
+.table-controls {
+    display: flex; gap: 12px; padding: 16px 20px; flex-wrap: wrap; align-items: center;
+    background: #f8f9fa; border-bottom: 1px solid #ddd;
+}
+.table-controls input[type=text] {
+    flex: 1; min-width: 180px; padding: 10px 14px; border: 1px solid #ddd; border-radius: 20px;
+    font-family: inherit; font-size: 0.9em;
+}
+.table-controls select { padding: 10px 14px; border: 1px solid #ddd; border-radius: 20px; font-family: inherit; font-size: 0.9em; }
+
+.table-scroll { overflow-x: auto; max-height: 560px; overflow-y: auto; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; white-space: nowrap; }
+th {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white; font-weight: 600; position: sticky; top: 0; cursor: pointer;
+}
+tr:nth-child(even) { background-color: #f8f9fa; }
+tr:hover { background-color: #e3f2fd; transition: background-color 0.3s ease; }
+
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr.tier-top td:first-child { border-left: 4px solid #fda085; }
+tr.tier-attention td:first-child { border-left: 4px solid #eb3349; }
+
+.badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 0.78em; font-weight: 600; }
+.badge.absent { background: #fde2e2; color: #e74c3c; }
+.badge.na { background: #eee; color: #999; }
+
+.legend-row {
+    display: flex; gap: 18px; flex-wrap: wrap; font-size: 0.85em; color: #555;
+    padding: 14px 20px 0;
+}
+.legend-row span { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+.insights {
+    background: linear-gradient(135deg, #a8edea, #fed6e3);
+    padding: 30px;
+    border-radius: 15px;
+    margin-bottom: 40px;
+}
+.insights h3 { color: #333; margin-bottom: 20px; font-size: 1.5em; }
+.insights ul { list-style-type: none; padding: 0; }
+.insights li {
+    padding: 10px 0; padding-left: 30px; position: relative; color: #444; font-size: 1.05em;
+}
+.insights li:before {
+    content: "▶"; position: absolute; left: 0; color: #667eea; font-weight: bold;
+}
+
+.raw-container {
+    background: white; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-bottom: 20px; overflow: hidden;
+}
+.raw-container summary {
+    background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 18px 20px;
+    cursor: pointer; font-size: 1.15em; font-weight: 600; list-style: none;
+}
+.raw-container summary::-webkit-details-marker { display: none; }
+.raw-container .raw-inner { padding: 20px; }
+
+.footer-note {
+    text-align: center; color: rgba(255,255,255,0.85); font-size: 0.85em; padding: 10px 20px 0;
+}
+
+@media (max-width: 768px) {
+    .header h1 { font-size: 2em; }
+    .container { padding: 20px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+    <div class="header">
+        <h1>📊 Semester Result Analysis</h1>
+        <p>{{ degree_branch }} — {{ exam_month_year }}</p>
+        <p class="meta-row">Report generated: <span id="gen-date"></span></p>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card gold">
+            <h3 id="stat-topper-total">–</h3>
+            <p>Highest total (Current Sem) — <span id="stat-topper-name"></span></p>
+        </div>
+        <div class="stat-card blue">
+            <h3 id="stat-avg-all">–</h3>
+            <p>Class average total</p>
+        </div>
+        <div class="stat-card green">
+            <h3 id="stat-avg-nonzero">–</h3>
+            <p>Average excluding fully absent</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="stat-core-count">–</h3>
+            <p>Core subjects in this exam</p>
+        </div>
+        <div class="stat-card blue">
+            <h3 id="stat-arrear-count">–</h3>
+            <p>Students with arrear/backlog papers</p>
+        </div>
+        <div class="stat-card red">
+            <h3 id="stat-fully-absent">–</h3>
+            <p>Fully absent this semester</p>
+        </div>
+    </div>
+
+    <h2 class="section-title">📈 Performance Visualizations</h2>
+    <div class="charts-grid">
+        <div class="chart-container">
+            <h3>📚 Average Marks by Core Subject</h3>
+            <canvas id="chartSubjectAvg"></canvas>
+            <p class="note">Averaged across students who attempted each subject in this exam.</p>
+        </div>
+        <div class="chart-container">
+            <h3>🎯 Distribution of Total Marks (Current Sem)</h3>
+            <canvas id="chartDistribution"></canvas>
+            <p class="note">Bucketed in ranges of 100.</p>
+        </div>
+    </div>
+    <div class="charts-grid">
+        <div class="chart-container">
+            <h3>🧾 Attendance Status — Core Subjects</h3>
+            <canvas id="chartAttendance"></canvas>
+            <p class="note">"Partial" means absent for one or more core papers but present for others.</p>
+        </div>
+        <div class="chart-container">
+            <h3>🔁 Arrear / Backlog Paper Attempts</h3>
+            <canvas id="chartArrears"></canvas>
+            <p class="note">Number of students who attempted each non-core (backlog) paper.</p>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <div class="table-header">
+            <h3>📋 Student Results — Core Subjects</h3>
+        </div>
+        <div class="legend-row">
+            <span><span class="dot" style="background:#fda085"></span> Top third by total</span>
+            <span><span class="dot" style="background:#eb3349"></span> Needs attention</span>
+            <span><span class="badge absent">AA</span> Absent for that paper</span>
+            <span><span class="badge na">—</span> Not applicable / not opted</span>
+        </div>
+        <div class="table-controls">
+            <input type="text" id="searchBox" placeholder="🔍 Search by name or register number…">
+            <select id="filterSelect">
+                <option value="all">All students</option>
+                <option value="top">Top third</option>
+                <option value="attention">Needs attention</option>
+                <option value="arrear">Has arrear papers</option>
+            </select>
+        </div>
+        <div class="table-scroll">
+            <table id="resultsTable">
+                <thead>
+                    <tr>
+                        <th data-key="rank">Rank</th>
+                        <th>Name</th>
+                        <th>Register No</th>
+                        <th id="core-headers"></th>
+                        <th class="num" data-key="total">Total</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="insights">
+        <h3>🔍 Key Insights & Analysis</h3>
+        <ul id="insightsList"></ul>
+    </div>
+
+    <h2 class="section-title">🚻 Performance by Gender</h2>
+    <div class="stats-grid">
+        <div class="stat-card blue">
+            <h3 id="stat-male-count">–</h3>
+            <p>Boys</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="stat-female-count">–</h3>
+            <p>Girls</p>
+        </div>
+        <div class="stat-card blue">
+            <h3 id="stat-male-avg">–</h3>
+            <p>Boys' average total</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="stat-female-avg">–</h3>
+            <p>Girls' average total</p>
+        </div>
+    </div>
+    <div class="charts-grid">
+        <div class="chart-container">
+            <h3>📊 Core Subject Averages — Boys vs Girls</h3>
+            <canvas id="chartGenderSubjects"></canvas>
+            <p class="note">Average marks per core subject, split by gender.</p>
+        </div>
+        <div class="chart-container">
+            <h3>⚖️ Average Total Marks — Boys vs Girls</h3>
+            <canvas id="chartGenderTotal"></canvas>
+            <p class="note" id="gender-sample-note"></p>
+        </div>
+    </div>
+
+    <details class="raw-container">
+        <summary>📂 Detailed Data — Arrear/Backlog Paper Attempts per Student</summary>
+        <div class="raw-inner">
+            <div class="table-scroll" style="max-height:420px;">
+                <table id="arrearTable">
+                    <thead><tr><th>Name</th><th>Register No</th><th>Arrear papers attempted (code : marks)</th></tr></thead>
+                    <tbody id="arrearTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </details>
+
+</div>
+
+<script>
+const DATA = {{ data_json | safe }};
+const GENDER_DATA = {{ gender_json | safe }};
+
+document.getElementById('gen-date').textContent = new Date().toLocaleDateString('en-IN', {year:'numeric', month:'long', day:'numeric'});
+
+const students = DATA.students; // already sorted by rank
+const coreCodes = DATA.core_codes;
+const arrearCodes = DATA.arrear_codes;
+const subjectStats = DATA.subject_stats;
+const n = students.length;
+const topThirdCount = Math.ceil(n/3);
+
+if (students.length > 0) {
+    document.getElementById('stat-topper-total').textContent = students[0].total;
+    document.getElementById('stat-topper-name').textContent = students[0].name;
+}
+document.getElementById('stat-avg-all').textContent = DATA.avg_all;
+document.getElementById('stat-avg-nonzero').textContent = DATA.avg_nonzero;
+document.getElementById('stat-core-count').textContent = coreCodes.length;
+document.getElementById('stat-arrear-count').textContent = DATA.n_with_arrear;
+document.getElementById('stat-fully-absent').textContent = DATA.fully_absent.length;
+
+students.forEach((s,i)=>{
+  s.tier = 'mid';
+  if(i < topThirdCount) s.tier = 'top';
+  if(s.total===0 || s.core_absent>0) s.tier = 'attention';
+});
+
+const subjAvgSorted = DATA.core_avg_sorted;
+if (subjAvgSorted.length > 0) {
+    new Chart(document.getElementById('chartSubjectAvg').getContext('2d'), {
+    type:'bar',
+    data:{
+        labels: subjAvgSorted.map(x=>x[0]),
+        datasets:[{ label:'Average marks', data: subjAvgSorted.map(x=>x[1]),
+        backgroundColor:'rgba(102, 126, 234, 0.8)', borderColor:'rgba(102, 126, 234, 1)', borderWidth:2, borderRadius:5 }]
+    },
+    options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{ beginAtZero:true, max:100 } } }
+    });
+}
+
+const maxPossibleMarks = coreCodes.length * 100;
+let distLabels = [];
+let distCounts = [];
+let bins = [];
+for (let i = 0; i <= Math.ceil(maxPossibleMarks / 100) * 100; i += 100) {
+    bins.push(i);
+}
+for (let i = 0; i < bins.length - 1; i++) {
+    distLabels.push(`${bins[i]}-${bins[i+1]}`);
+    distCounts.push(0);
+}
+students.forEach(s => {
+    for (let i = 0; i < bins.length - 1; i++) {
+        if (s.total >= bins[i] && s.total < bins[i+1]) { distCounts[i]++; break; }
+        if (s.total === bins[bins.length-1] && i === bins.length-2) { distCounts[i]++; }
+    }
+});
+
+new Chart(document.getElementById('chartDistribution').getContext('2d'), {
+  type:'bar',
+  data:{ labels: distLabels, datasets:[{ label:'Students', data: distCounts,
+    backgroundColor:'rgba(253, 160, 133, 0.85)', borderColor:'rgba(246, 211, 101, 1)', borderWidth:2, borderRadius:5 }] },
+  options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{ beginAtZero:true, ticks:{stepSize:2} } } }
+});
+
+const fullPresent = students.filter(s=>s.core_absent===0 && s.core_not_opted===0 && s.total>0).length;
+const partialAbsent = DATA.partial_absent.length;
+const fullyAbsent = DATA.fully_absent.length;
+new Chart(document.getElementById('chartAttendance').getContext('2d'), {
+  type:'pie',
+  data:{
+    labels:['Present — all core papers','Partial absence','Fully absent'],
+    datasets:[{ data:[fullPresent, partialAbsent, fullyAbsent],
+      backgroundColor:['#43e97b','#fda085','#eb3349'], borderWidth:3, borderColor:'#fff' }]
+  },
+  options:{ responsive:true, plugins:{legend:{position:'bottom'}} }
+});
+
+const arrearCounts = arrearCodes.map(c=>subjectStats[c] ? subjectStats[c].attempted : 0);
+if (arrearCodes.length > 0) {
+    new Chart(document.getElementById('chartArrears').getContext('2d'), {
+    type:'bar',
+    data:{ labels: arrearCodes, datasets:[{ label:'Students attempted', data: arrearCounts,
+        backgroundColor:'rgba(235, 51, 73, 0.8)', borderColor:'rgba(235, 51, 73, 1)', borderWidth:2, borderRadius:5 }] },
+    options:{ indexAxis:'y', responsive:true, plugins:{legend:{display:false}}, scales:{ x:{ beginAtZero:true, ticks:{stepSize:2} } } }
+    });
+}
+
+const insights = [];
+if (subjAvgSorted.length > 0) {
+    const bestSubj = subjAvgSorted[0];
+    const weakSubj = subjAvgSorted[subjAvgSorted.length-1];
+    insights.push(`Strongest core subject: ${bestSubj[0]}, class average ${bestSubj[1]}/100`);
+    insights.push(`Weakest core subject: ${weakSubj[0]}, class average ${weakSubj[1]}/100 — may need reinforcement`);
+    const gapTop = (subjAvgSorted[0][1]-subjAvgSorted[subjAvgSorted.length-1][1]).toFixed(1);
+    insights.push(`Spread between the strongest and weakest core subject averages is ${gapTop} marks, indicating uneven preparation across papers`);
+}
+
+if (students.length > 0) {
+    insights.push(`Topper of the batch: ${students[0].name} (${students[0].reg}) with a total of ${students[0].total}`);
+}
+
+if(DATA.fully_absent.length){
+  insights.push(`${DATA.fully_absent.length} student(s) — ${DATA.fully_absent.join(', ')} — have no marks recorded for any core paper and will need to reappear`);
+}
+if(DATA.partial_absent.length){
+  insights.push(`${DATA.partial_absent.length} student(s) — ${DATA.partial_absent.join(', ')} — were absent for one or more core papers while attempting the rest`);
+}
+if (n > 0) {
+    insights.push(`${DATA.n_with_arrear} of ${n} students (${Math.round(DATA.n_with_arrear/n*100)}%) attempted at least one arrear/backlog paper alongside the current semester's exams`);
+}
+
+const insightsList = document.getElementById('insightsList');
+insights.forEach(text=>{
+  const li = document.createElement('li');
+  li.textContent = text;
+  insightsList.appendChild(li);
+});
+
+const coreHeaderCell = document.getElementById('core-headers');
+coreHeaderCell.outerHTML = coreCodes.map(c=>`<th class="num">${c}</th>`).join('');
+
+function fmtMark(v){
+  if(v==='AA' || v==='ABSENT' || v==='AB') return '<span class="badge absent">AA</span>';
+  if(v==='-' || !v) return '<span class="badge na">—</span>';
+  return v;
+}
+
+function renderTable(list){
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = list.map(s=>{
+    const tierClass = s.tier==='top' ? 'tier-top' : (s.tier==='attention' ? 'tier-attention' : '');
+    const cells = coreCodes.map(c=>`<td class="num">${fmtMark(s.marks[c])}</td>`).join('');
+    return `<tr class="${tierClass}"><td>${s.rank}</td><td>${s.name}</td><td>${s.reg}</td>${cells}<td class="num">${s.total}</td></tr>`;
+  }).join('');
+}
+renderTable(students);
+
+function applyFilters(){
+  const q = document.getElementById('searchBox').value.trim().toLowerCase();
+  const f = document.getElementById('filterSelect').value;
+  let list = students.filter(s => s.name.toLowerCase().includes(q) || s.reg.toLowerCase().includes(q));
+  if(f==='top') list = list.filter(s=>s.tier==='top');
+  if(f==='attention') list = list.filter(s=>s.tier==='attention');
+  if(f==='arrear') list = list.filter(s=>s.arrear_attempts.length>0);
+  renderTable(list);
+}
+document.getElementById('searchBox').addEventListener('input', applyFilters);
+document.getElementById('filterSelect').addEventListener('change', applyFilters);
+
+let sortDir = {};
+document.querySelectorAll('th[data-key]').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const key = th.dataset.key;
+    sortDir[key] = !sortDir[key];
+    const sorted = [...students].sort((a,b)=> sortDir[key] ? a[key]-b[key] : b[key]-a[key]);
+    renderTable(sorted);
+  });
+});
+
+document.getElementById('stat-male-count').textContent = GENDER_DATA.male_stats.count;
+document.getElementById('stat-female-count').textContent = GENDER_DATA.female_stats.count;
+document.getElementById('stat-male-avg').textContent = GENDER_DATA.male_stats.avg_all;
+document.getElementById('stat-female-avg').textContent = GENDER_DATA.female_stats.avg_all;
+document.getElementById('gender-sample-note').textContent =
+  `Sample sizes are uneven (${GENDER_DATA.male_stats.count} boys vs ${GENDER_DATA.female_stats.count} girls), so treat the average as indicative, not statistically robust.`;
+
+if (coreCodes.length > 0) {
+    new Chart(document.getElementById('chartGenderSubjects').getContext('2d'), {
+    type: 'bar',
+    data: {
+        labels: coreCodes,
+        datasets: [
+        { label: 'Boys avg', data: coreCodes.map(c=>GENDER_DATA.male_core_avg[c] || 0),
+            backgroundColor: 'rgba(79, 172, 254, 0.8)', borderColor: 'rgba(79, 172, 254, 1)', borderWidth: 2, borderRadius: 5 },
+        { label: 'Girls avg', data: coreCodes.map(c=>GENDER_DATA.female_core_avg[c] || 0),
+            backgroundColor: 'rgba(253, 160, 133, 0.85)', borderColor: 'rgba(246, 211, 101, 1)', borderWidth: 2, borderRadius: 5 }
+        ]
+    },
+    options: { responsive:true, scales: { y: { beginAtZero:true, max:100 } },
+        plugins: { legend: { position:'bottom' } } }
+    });
+}
+
+new Chart(document.getElementById('chartGenderTotal').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: ['Boys', 'Girls'],
+    datasets: [{ label: 'Average total marks', data: [GENDER_DATA.male_stats.avg_all, GENDER_DATA.female_stats.avg_all],
+      backgroundColor: ['rgba(102, 126, 234, 0.85)', 'rgba(235, 51, 73, 0.8)'], borderRadius: 8 }]
+  },
+  options: { responsive:true, plugins:{legend:{display:false}}, scales:{ y:{ beginAtZero:true, max:maxPossibleMarks } } }
+});
+
+const arrearBody = document.getElementById('arrearTableBody');
+arrearBody.innerHTML = students.filter(s=>s.arrear_attempts.length>0).map(s=>{
+  const list = s.arrear_attempts.map(a=>`${a[0]}: ${a[1]}`).join(', ');
+  return `<tr><td>${s.name}</td><td>${s.reg}</td><td>${list}</td></tr>`;
+}).join('');
+</script>
+</body>
+</html>

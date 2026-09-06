@@ -32,8 +32,9 @@ def build_dataframe(student_results: list[dict]) -> pd.DataFrame:
     all_subject_codes: list[str] = []
     seen = set()
     for student in student_results:
-        for code in student.get("subjects", {}):
-            if code not in seen:
+        for subj in student.get("subjects", []):
+            code = subj.get("code")
+            if code and code not in seen:
                 all_subject_codes.append(code)
                 seen.add(code)
 
@@ -43,13 +44,17 @@ def build_dataframe(student_results: list[dict]) -> pd.DataFrame:
         row = {
             "Name": student.get("name", "UNKNOWN"),
             "Register No": student.get("register_no", "UNKNOWN"),
+            "Gender": student.get("gender", "UNKNOWN"),
+            "Community": student.get("community", "UNKNOWN"),
         }
 
         total = 0
-        subjects = student.get("subjects", {})
+        
+        # Build lookup for this student's subjects
+        subj_lookup = {s.get("code"): s.get("total", "-") for s in student.get("subjects", [])}
 
         for code in all_subject_codes:
-            marks = subjects.get(code, "-")
+            marks = subj_lookup.get(code, "-")
             row[code] = marks
 
             # Sum numeric marks only
@@ -58,12 +63,11 @@ def build_dataframe(student_results: list[dict]) -> pd.DataFrame:
                     total += int(marks)
                 except (ValueError, TypeError):
                     pass
-
         row["Total"] = total
         rows.append(row)
 
     # Build DataFrame with ordered columns
-    columns = ["Name", "Register No"] + all_subject_codes + ["Total"]
+    columns = ["Name", "Register No", "Gender", "Community"] + all_subject_codes + ["Total"]
     df = pd.DataFrame(rows, columns=columns)
 
     logger.info(

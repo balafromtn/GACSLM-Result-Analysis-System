@@ -61,15 +61,13 @@ def parse_result_html(html: str) -> dict | None:
     """
     Parse raw HTML of one student's result table.
 
-    Args:
-        html: Raw HTML string containing the result table.
-
     Returns:
         Dictionary with keys:
             - register_no: str
             - name: str
-            - subjects: dict {subject_code: marks_str, ...}
-        Returns None if parsing fails.
+            - degree_branch: str
+            - exam_month_year: str
+            - subjects: list of dicts (semester, code, title, total, result)
     """
     try:
         soup = BeautifulSoup(html, "html.parser")
@@ -80,17 +78,27 @@ def parse_result_html(html: str) -> dict | None:
 
         name = "UNKNOWN"
         register_no = "UNKNOWN"
-        sub_code_idx = 1  # default for new portal (Course Code at col 1)
+        degree_branch = "UNKNOWN"
+        exam_month_year = "UNKNOWN"
 
-        # Scan all header rows (thead > tr, or all tr)
+        # Scan all header rows
         thead = table.find("thead")
         rows = thead.find_all("tr") if thead else table.find_all("tr")
 
         for row in rows:
+            # Check for Exam Month & Year which is typically in a <center> inside <th>
+            for center in row.find_all("center"):
+                text = center.get_text(separator=" ").strip()
+                if "Examinations Result -" in text:
+                    exam_month_year = text.split("-")[-1].strip()
+
             # Check <strong> elements for student info
             for strong in row.find_all("strong"):
                 text = strong.get_text(separator=" ").strip()
                 text_lower = text.lower()
+
+                if "degree & branch:" in text_lower:
+                    degree_branch = _extract_after_colon(text, "degree & branch") or degree_branch
 
                 for label in NAME_LABELS:
                     if label in text_lower:
@@ -114,21 +122,8 @@ def parse_result_html(html: str) -> dict | None:
                                 register_no = val
                         break
 
-            # Check <th> elements for column headers to detect layout
-            for th in row.find_all("th"):
-                th_text = th.get_text(strip=True).lower()
-                for header in SUBJECT_HEADERS:
-                    if header in th_text:
-                        # Found the "Course Code" header - count its position
-                        all_ths = row.find_all("th")
-                        for i, t in enumerate(all_ths):
-                            if header in t.get_text(strip=True).lower():
-                                sub_code_idx = i
-                                break
-                        break
-
         # Extract subject rows
-        subjects = {}
+        subjects = []
         tbody = table.find("tbody")
         data_rows = (
             tbody.find_all("tr")
@@ -138,29 +133,39 @@ def parse_result_html(html: str) -> dict | None:
 
         for row in data_rows:
             cols = row.find_all("td")
-            if len(cols) < 6:
+            if len(cols) < 7:
+                continue
+            
+            # Check if this is the footer row (which spans multiple columns)
+            if cols[0].has_attr("colspan"):
                 continue
 
-            # Subject code at detected column index
-            if sub_code_idx < len(cols):
-                subject_code = cols[sub_code_idx].get_text(strip=True)
-            else:
+            # Standard 7 column layout: Semester, Code, Title, Internal, External, Total, Result
+            sem = cols[0].get_text(strip=True)
+            code = cols[1].get_text(strip=True)
+            title = cols[2].get_text(strip=True)
+            total = cols[-2].get_text(strip=True)
+            res = cols[-1].get_text(strip=True)
+
+            if not code:
                 continue
-            if not subject_code:
-                continue
 
-            # TOTAL is second from last column, RESULT is last
-            total_col = cols[-2]
-            marks = total_col.get_text(strip=True)
+            if not total or total == "-" or total.lower() in ("ab", "absent"):
+                total = "-"
 
-            if not marks or marks == "-" or marks.lower() in ("ab", "absent"):
-                marks = "-"
-
-            subjects[subject_code] = marks
+            subjects.append({
+                "semester": sem,
+                "code": code,
+                "title": title,
+                "total": total,
+                "result": res
+            })
 
         result = {
             "register_no": register_no,
             "name": name,
+            "degree_branch": degree_branch,
+            "exam_month_year": exam_month_year,
             "subjects": subjects,
         }
 

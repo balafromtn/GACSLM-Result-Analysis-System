@@ -251,8 +251,11 @@ function buildResultsTable(results) {
     const subjectCodes = [];
     const seen = new Set();
     results.forEach((r) => {
-        Object.keys(r.subjects || {}).forEach((code) => {
-            if (!seen.has(code)) { subjectCodes.push(code); seen.add(code); }
+        (r.subjects || []).forEach((subj) => {
+            if (subj && subj.code && !seen.has(subj.code)) { 
+                subjectCodes.push(subj.code); 
+                seen.add(subj.code); 
+            }
         });
     });
 
@@ -266,12 +269,17 @@ function buildResultsTable(results) {
     results.forEach((r) => {
         const tr = document.createElement('tr');
         const tdName = document.createElement('td'); tdName.textContent = r.name || 'UNKNOWN'; tr.appendChild(tdName);
-        const tdReg = document.createElement('td'); tdReg.textContent = r.register_no || 'UNKNOWN'; tdReg.style.fontFamily = "var(--font-mono)"; tdReg.style.fontWeight = '600'; tr.appendChild(tdReg);
+        const tdReg = document.createElement('td'); tdReg.textContent = r.register_no || r.reg_no || 'UNKNOWN'; tdReg.style.fontFamily = "var(--font-mono)"; tdReg.style.fontWeight = '600'; tr.appendChild(tdReg);
 
         let total = 0;
+        const subjLookup = {};
+        (r.subjects || []).forEach(s => {
+            if (s && s.code) subjLookup[s.code] = s.total;
+        });
+
         subjectCodes.forEach((code) => {
             const td = document.createElement('td'); td.className = 'mark-cell';
-            const marks = (r.subjects || {})[code];
+            const marks = subjLookup[code];
             if (marks === undefined || marks === null || marks === '-') { td.textContent = '-'; td.classList.add('dash'); }
             else { td.textContent = marks; const n = parseInt(marks, 10); if (!isNaN(n)) total += n; }
             tr.appendChild(td);
@@ -295,6 +303,21 @@ downloadBtn.addEventListener('click', async () => {
         URL.revokeObjectURL(url);
     } catch (err) { showError(err.message); }
 });
+
+const downloadReportBtn = document.getElementById('downloadReportBtn');
+if (downloadReportBtn) {
+    downloadReportBtn.addEventListener('click', async () => {
+        try {
+            const res = await fetch(`${API_BASE}/report`);
+            if (!res.ok) { const err = await res.json(); throw new Error(err.detail || 'Report download failed'); }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = 'dashboard_report.html';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err) { showError(err.message); }
+    });
+}
 
 
 // ── Error Toast ──────────────────────────────────────────────────
