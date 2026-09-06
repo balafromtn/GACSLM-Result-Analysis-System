@@ -4,6 +4,21 @@
 
 const API_BASE = window.location.origin;
 
+// ── Theme Logic ──────────────────────────────────────────────────
+const themeToggle = document.getElementById('themeToggle');
+const savedTheme = localStorage.getItem('theme') || 'dark';
+document.documentElement.setAttribute('data-theme', savedTheme);
+if (themeToggle) {
+    themeToggle.textContent = savedTheme === 'light' ? '🌙' : '☀️';
+    themeToggle.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme');
+        const next = current === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+        themeToggle.textContent = next === 'light' ? '🌙' : '☀️';
+    });
+}
+
 // ── DOM Elements ─────────────────────────────────────────────────
 const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
@@ -119,7 +134,7 @@ async function handleFile(file) {
         const data = await res.json();
         uploadedStudents = data.students;
 
-        dropzone.querySelector('.dropzone-content').style.display = 'block';
+        dropzone.style.display = 'none';
         dropzoneUploading.style.display = 'none';
         uploadResult.style.display = 'block';
         uploadMessage.textContent = data.message;

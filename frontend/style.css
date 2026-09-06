@@ -30,6 +30,18 @@
     --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+[data-theme="light"] {
+    --bg-primary: #f0f4f8;
+    --bg-secondary: #ffffff;
+    --bg-card: rgba(255, 255, 255, 0.85);
+    --bg-glass: rgba(0, 0, 0, 0.04);
+    --bg-glass-border: rgba(0, 0, 0, 0.08);
+    --text-primary: #1e293b;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.1);
+}
+
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 html { font-size: 16px; scroll-behavior: smooth; }
 body {
@@ -80,12 +92,31 @@ body {
 /* ── Layout ───────────────────────────────────────────────────── */
 .app-container { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 24px 20px; min-height: 100vh; display: flex; flex-direction: column; }
 
-/* ── Header ───────────────────────────────────────────────────── */
-.app-header { text-align: center; margin-bottom: 20px; padding: 28px 0 16px; }
-.logo-section { display: flex; align-items: center; justify-content: center; gap: 16px; }
-.logo-icon svg { width: 48px; height: 48px; filter: drop-shadow(0 4px 12px rgba(99,102,241,0.4)); }
-.app-header h1 { font-size: 1.75rem; font-weight: 800; background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.03em; line-height: 1.2; }
-.subtitle { color: var(--text-secondary); font-size: 0.85rem; font-weight: 400; margin-top: 2px; }
+/* ── Navbar ───────────────────────────────────────────────────── */
+.app-navbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 24px; background: var(--bg-card); backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--bg-glass-border); position: sticky; top: 0; z-index: 100;
+}
+.navbar-brand { display: flex; align-items: center; gap: 12px; }
+.navbar-brand svg { width: 36px; height: 36px; filter: drop-shadow(0 2px 6px rgba(99,102,241,0.3)); }
+.navbar-brand h1 { font-size: 1.15rem; font-weight: 800; background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.01em; line-height: 1.2; margin-bottom: 2px; }
+.navbar-brand p { font-size: 0.75rem; color: var(--text-secondary); font-weight: 500; }
+
+.btn-theme-toggle {
+    background: var(--bg-glass); border: 1px solid var(--bg-glass-border); color: var(--text-primary);
+    width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.1rem;
+    display: flex; align-items: center; justify-content: center; transition: var(--transition-base);
+}
+.btn-theme-toggle:hover { background: var(--bg-glass-border); transform: scale(1.05); }
+
+/* ── Ask AI Button ────────────────────────────────────────────── */
+.btn-ask-ai {
+    background: var(--gradient-primary); color: white;
+    border: none; padding: 12px 24px; border-radius: 30px; font-weight: 600; font-size: 0.95rem;
+    box-shadow: 0 4px 16px rgba(99,102,241,0.4); cursor: pointer; transition: var(--transition-base);
+}
+.btn-ask-ai:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(99,102,241,0.6); }
 
 /* ── Format Banner ────────────────────────────────────────────── */
 .format-banner {

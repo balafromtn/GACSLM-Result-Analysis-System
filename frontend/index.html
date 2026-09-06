@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="GACSLM7 Semester Result Analysis — Bulk download student exam results from Government Arts College (Autonomous), Salem-7">
-    <title>GACSLM7 Semester Result Analysis</title>
+    <meta name="description" content="Result Analysis System— Bulk download student exam results from Government Arts College (Autonomous), Salem-7">
+    <title>Result Analysis System</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,31 +17,33 @@
     <!-- Animated background -->
     <div class="bg-particles" id="particles"></div>
 
-    <div class="app-container">
-        <!-- Header -->
-        <header class="app-header">
-            <div class="logo-section">
-                <div class="logo-icon">
-                    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect width="48" height="48" rx="12" fill="url(#logoGrad)"/>
-                        <path d="M24 10L6 19L24 28L42 19L24 10Z" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M12 22.3333V31C12 35.4183 17.3726 39 24 39C30.6274 39 36 35.4183 36 31V22.3333" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M42 19V34" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        <circle cx="42" cy="36" r="2" fill="white"/>
-                        <defs>
-                            <linearGradient id="logoGrad" x1="0" y1="0" x2="48" y2="48">
-                                <stop stop-color="#6366f1"/>
-                                <stop offset="1" stop-color="#8b5cf6"/>
-                            </linearGradient>
-                        </defs>
-                    </svg>
-                </div>
-                <div>
-                    <h1>GACSLM7 Semester Result Analysis</h1>
-                    <p class="subtitle">Government Arts College (Autonomous), Salem-7</p>
-                </div>
+    <!-- Navbar -->
+    <nav class="app-navbar">
+        <div class="navbar-brand">
+            <div class="logo-icon">
+                <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="48" height="48" rx="12" fill="url(#logoGrad)"/>
+                    <path d="M24 10L6 19L24 28L42 19L24 10Z" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M12 22.3333V31C12 35.4183 17.3726 39 24 39C30.6274 39 36 35.4183 36 31V22.3333" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M42 19V34" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="42" cy="36" r="2" fill="white"/>
+                    <defs>
+                        <linearGradient id="logoGrad" x1="0" y1="0" x2="48" y2="48">
+                            <stop stop-color="#6366f1"/>
+                            <stop offset="1" stop-color="#8b5cf6"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
             </div>
-        </header>
+            <div>
+                <h1>Result Analysis System</h1>
+                <p>Government Arts College (Autonomous), Salem-7</p>
+            </div>
+        </div>
+        <button id="themeToggle" class="btn-theme-toggle" aria-label="Toggle Theme">☀️</button>
+    </nav>
+
+    <div class="app-container">
 
         <!-- Format Hint Banner -->
         <div class="format-banner" id="formatBanner">
@@ -167,12 +169,12 @@
             </section>
 
 
-            <!-- Result Analysis -->
+            <!-- Report Preview -->
             <section class="card results-section" id="resultsSection" style="display:none;">
                 <div class="card-header">
                     <h2>
                         <span class="step-badge">3</span>
-                        Result Analysis
+                        Report Preview
                     </h2>
                 </div>
                 <div class="card-body">
@@ -180,8 +182,12 @@
                         <iframe id="reportIframe" style="width: 100%; height: 800px; border: none; border-radius: 10px;" sandbox="allow-scripts allow-same-origin"></iframe>
                     </div>
                     
-                    <div class="results-actions" style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
-                        <button class="btn btn-accent" id="downloadBtn">
+                    <div class="results-actions" style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <button id="askAiBtn" class="btn-ask-ai">
+                            ✨ Ask AI
+                        </button>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-accent" id="downloadBtn">
                             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                                 <path d="M9 3V12M5 9L9 12L13 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                                 <path d="M3 14H15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -195,6 +201,7 @@
                             </svg>
                             Download Report
                         </button>
+                        </div>
                     </div>
                 </div>
             </section>
