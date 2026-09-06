@@ -106,12 +106,12 @@ def scrape_student(driver: webdriver.Chrome, register_no: str, dob: str) -> str 
             # Wait for the page to load
             time.sleep(1.5)
 
-            # Wait for at least one table to appear, then get the full body HTML
-            wait.until(EC.presence_of_element_located((By.TAG_NAME, "table")))
-            page_html = driver.find_element(By.TAG_NAME, "body").get_attribute("innerHTML")
+            # Extract the first table on the page (the marks table)
+            table = wait.until(EC.presence_of_element_located((By.TAG_NAME, "table")))
+            table_html = table.get_attribute("outerHTML")
 
             logger.info(f"Successfully scraped {register_no}")
-            return page_html
+            return table_html
 
         except Exception as e:
             logger.warning(
