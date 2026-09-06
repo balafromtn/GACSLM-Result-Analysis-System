@@ -38,12 +38,17 @@ def generate_report_html(scraped_results: list[dict]) -> str:
             if sem_val > max_sem_val:
                 max_sem_val = sem_val
 
-    # Step 2: Categorize subjects
+    # Step 2: Categorize subjects and map titles
     core_codes = set()
     arrear_codes = set()
+    code_to_title = {}
     for result in scraped_results:
         for subj in result.get("subjects", []):
             code = subj.get("code")
+            title = subj.get("title", "")
+            if code and title and code not in code_to_title:
+                code_to_title[code] = title
+                
             sem_val = roman_to_int(subj.get("semester", ""))
             if sem_val == max_sem_val:
                 core_codes.add(code)
@@ -163,6 +168,7 @@ def generate_report_html(scraped_results: list[dict]) -> str:
         "students": [{k: v for k, v in s.items() if k != "gender"} for s in students],
         "core_codes": core_codes,
         "arrear_codes": arrear_codes,
+        "code_to_title": code_to_title,
         "subject_stats": subject_stats,
         "avg_nonzero": avg_nonzero,
         "avg_all": avg_all,

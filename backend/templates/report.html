@@ -17,6 +17,7 @@ body {
 
 .container {
     max-width: 1400px;
+    width: 100%;
     margin: 0 auto;
     background: rgba(255, 255, 255, 0.95);
     border-radius: 20px;
@@ -175,8 +176,11 @@ tr.tier-attention td:first-child { border-left: 4px solid #eb3349; }
 }
 
 @media (max-width: 768px) {
-    .header h1 { font-size: 2em; }
-    .container { padding: 20px; }
+    body { padding: 10px; }
+    .header h1 { font-size: 1.8em; }
+    .container { padding: 15px; border-radius: 12px; }
+    .stat-card h3 { font-size: 1.8em; }
+    .charts-grid { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -204,7 +208,7 @@ tr.tier-attention td:first-child { border-left: 4px solid #eb3349; }
         </div>
         <div class="stat-card">
             <h3 id="stat-core-count">–</h3>
-            <p>Core subjects in this exam</p>
+            <p>Subjects in this exam</p>
         </div>
         <div class="stat-card blue">
             <h3 id="stat-arrear-count">–</h3>
@@ -219,7 +223,7 @@ tr.tier-attention td:first-child { border-left: 4px solid #eb3349; }
     <h2 class="section-title">📈 Performance Visualizations</h2>
     <div class="charts-grid">
         <div class="chart-container">
-            <h3>📚 Average Marks by Core Subject</h3>
+            <h3>📚 Average Marks by Subject</h3>
             <canvas id="chartSubjectAvg"></canvas>
             <p class="note">Averaged across students who attempted each subject in this exam.</p>
         </div>
@@ -231,9 +235,11 @@ tr.tier-attention td:first-child { border-left: 4px solid #eb3349; }
     </div>
     <div class="charts-grid">
         <div class="chart-container">
-            <h3>🧾 Attendance Status — Core Subjects</h3>
-            <canvas id="chartAttendance"></canvas>
-            <p class="note">"Partial" means absent for one or more core papers but present for others.</p>
+            <h3>🧾 Attendance Status — Current Semester</h3>
+            <div style="max-height: 280px; display: flex; justify-content: center; position: relative;">
+                <canvas id="chartAttendance"></canvas>
+            </div>
+            <p class="note">"Partial" means absent for one or more papers but present for others.</p>
         </div>
         <div class="chart-container">
             <h3>🔁 Arrear / Backlog Paper Attempts</h3>
@@ -244,7 +250,7 @@ tr.tier-attention td:first-child { border-left: 4px solid #eb3349; }
 
     <div class="table-container">
         <div class="table-header">
-            <h3>📋 Student Results — Core Subjects</h3>
+            <h3>📋 Student Results — Current Semester</h3>
         </div>
         <div class="legend-row">
             <span><span class="dot" style="background:#fda085"></span> Top third by total</span>
@@ -319,7 +325,7 @@ tr.tier-attention td:first-child { border-left: 4px solid #eb3349; }
         <div class="raw-inner">
             <div class="table-scroll" style="max-height:420px;">
                 <table id="arrearTable">
-                    <thead><tr><th>Name</th><th>Register No</th><th>Arrear papers attempted (code : marks)</th></tr></thead>
+                    <thead><tr><th>Name</th><th>Register No</th><th>Arrear papers attempted (Course Title : Marks)</th></tr></thead>
                     <tbody id="arrearTableBody"></tbody>
                 </table>
             </div>
@@ -362,7 +368,7 @@ if (subjAvgSorted.length > 0) {
     new Chart(document.getElementById('chartSubjectAvg').getContext('2d'), {
     type:'bar',
     data:{
-        labels: subjAvgSorted.map(x=>x[0]),
+        labels: subjAvgSorted.map(x => DATA.code_to_title[x[0]] || x[0]),
         datasets:[{ label:'Average marks', data: subjAvgSorted.map(x=>x[1]),
         backgroundColor:'rgba(102, 126, 234, 0.8)', borderColor:'rgba(102, 126, 234, 1)', borderWidth:2, borderRadius:5 }]
     },
@@ -401,18 +407,18 @@ const fullyAbsent = DATA.fully_absent.length;
 new Chart(document.getElementById('chartAttendance').getContext('2d'), {
   type:'pie',
   data:{
-    labels:['Present — all core papers','Partial absence','Fully absent'],
+    labels:['Present — all papers','Partial absence','Fully absent'],
     datasets:[{ data:[fullPresent, partialAbsent, fullyAbsent],
       backgroundColor:['#43e97b','#fda085','#eb3349'], borderWidth:3, borderColor:'#fff' }]
   },
-  options:{ responsive:true, plugins:{legend:{position:'bottom'}} }
+  options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}} }
 });
 
 const arrearCounts = arrearCodes.map(c=>subjectStats[c] ? subjectStats[c].attempted : 0);
 if (arrearCodes.length > 0) {
     new Chart(document.getElementById('chartArrears').getContext('2d'), {
     type:'bar',
-    data:{ labels: arrearCodes, datasets:[{ label:'Students attempted', data: arrearCounts,
+    data:{ labels: arrearCodes.map(c => DATA.code_to_title[c] || c), datasets:[{ label:'Students attempted', data: arrearCounts,
         backgroundColor:'rgba(235, 51, 73, 0.8)', borderColor:'rgba(235, 51, 73, 1)', borderWidth:2, borderRadius:5 }] },
     options:{ indexAxis:'y', responsive:true, plugins:{legend:{display:false}}, scales:{ x:{ beginAtZero:true, ticks:{stepSize:2} } } }
     });
@@ -422,10 +428,10 @@ const insights = [];
 if (subjAvgSorted.length > 0) {
     const bestSubj = subjAvgSorted[0];
     const weakSubj = subjAvgSorted[subjAvgSorted.length-1];
-    insights.push(`Strongest core subject: ${bestSubj[0]}, class average ${bestSubj[1]}/100`);
-    insights.push(`Weakest core subject: ${weakSubj[0]}, class average ${weakSubj[1]}/100 — may need reinforcement`);
+    insights.push(`Strongest subject: ${DATA.code_to_title[bestSubj[0]] || bestSubj[0]}, class average ${bestSubj[1]}/100`);
+    insights.push(`Weakest subject: ${DATA.code_to_title[weakSubj[0]] || weakSubj[0]}, class average ${weakSubj[1]}/100 — may need reinforcement`);
     const gapTop = (subjAvgSorted[0][1]-subjAvgSorted[subjAvgSorted.length-1][1]).toFixed(1);
-    insights.push(`Spread between the strongest and weakest core subject averages is ${gapTop} marks, indicating uneven preparation across papers`);
+    insights.push(`Spread between the strongest and weakest subject averages is ${gapTop} marks, indicating uneven preparation across papers`);
 }
 
 if (students.length > 0) {
@@ -526,7 +532,7 @@ new Chart(document.getElementById('chartGenderTotal').getContext('2d'), {
 
 const arrearBody = document.getElementById('arrearTableBody');
 arrearBody.innerHTML = students.filter(s=>s.arrear_attempts.length>0).map(s=>{
-  const list = s.arrear_attempts.map(a=>`${a[0]}: ${a[1]}`).join(', ');
+  const list = s.arrear_attempts.map(a=>`${DATA.code_to_title[a[0]] || a[0]}: ${a[1]}`).join('<br>');
   return `<tr><td>${s.name}</td><td>${s.reg}</td><td>${list}</td></tr>`;
 }).join('');
 </script>

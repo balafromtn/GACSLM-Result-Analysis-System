@@ -150,12 +150,12 @@ async def upload_file(file: UploadFile = File(...)):
             df = pd.read_excel(BytesIO(contents), engine="openpyxl")
             logger.info(f"Parsing Excel file: {file.filename}")
 
-        required_cols = {"reg_no", "dob", "gender", "community"}
+        required_cols = {"reg_no", "dob", "gender"}
         actual_cols = set(df.columns.str.strip().str.lower())
         if not required_cols.issubset(actual_cols):
             raise HTTPException(
                 status_code=400,
-                detail=f"File must have columns: reg_no, dob, gender, community. Found: {list(df.columns)}",
+                detail=f"File must have columns: reg_no, dob, gender. Found: {list(df.columns)}",
             )
 
         df.columns = df.columns.str.strip().str.lower()
@@ -165,7 +165,7 @@ async def upload_file(file: UploadFile = File(...)):
             reg = str(row["reg_no"]).strip()
             dob_raw = row["dob"]
             gender = str(row["gender"]).strip() if pd.notna(row["gender"]) else "UNKNOWN"
-            community = str(row["community"]).strip() if pd.notna(row["community"]) else "UNKNOWN"
+            community = str(row["community"]).strip() if "community" in row and pd.notna(row["community"]) else "UNKNOWN"
 
             if isinstance(dob_raw, str):
                 dob_parsed = None

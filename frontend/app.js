@@ -208,7 +208,7 @@ function updateProgress(data) {
 function onScrapingComplete(data) {
     resetScrapeBtn();
     if (data.results && data.results.length > 0) {
-        buildResultsTable(data.results);
+        document.getElementById('reportIframe').src = `${API_BASE}/report`;
         resultsSection.style.display = 'block';
         resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -247,48 +247,7 @@ function updateStudentItem(item, status, errorMsg) {
 
 
 // ── Results Table ────────────────────────────────────────────────
-function buildResultsTable(results) {
-    const subjectCodes = [];
-    const seen = new Set();
-    results.forEach((r) => {
-        (r.subjects || []).forEach((subj) => {
-            if (subj && subj.code && !seen.has(subj.code)) { 
-                subjectCodes.push(subj.code); 
-                seen.add(subj.code); 
-            }
-        });
-    });
 
-    const columns = ['Name', 'Register No', ...subjectCodes, 'Total'];
-    resultsTableHead.innerHTML = '';
-    const headerRow = document.createElement('tr');
-    columns.forEach((col) => { const th = document.createElement('th'); th.textContent = col; headerRow.appendChild(th); });
-    resultsTableHead.appendChild(headerRow);
-
-    resultsTableBody.innerHTML = '';
-    results.forEach((r) => {
-        const tr = document.createElement('tr');
-        const tdName = document.createElement('td'); tdName.textContent = r.name || 'UNKNOWN'; tr.appendChild(tdName);
-        const tdReg = document.createElement('td'); tdReg.textContent = r.register_no || r.reg_no || 'UNKNOWN'; tdReg.style.fontFamily = "var(--font-mono)"; tdReg.style.fontWeight = '600'; tr.appendChild(tdReg);
-
-        let total = 0;
-        const subjLookup = {};
-        (r.subjects || []).forEach(s => {
-            if (s && s.code) subjLookup[s.code] = s.total;
-        });
-
-        subjectCodes.forEach((code) => {
-            const td = document.createElement('td'); td.className = 'mark-cell';
-            const marks = subjLookup[code];
-            if (marks === undefined || marks === null || marks === '-') { td.textContent = '-'; td.classList.add('dash'); }
-            else { td.textContent = marks; const n = parseInt(marks, 10); if (!isNaN(n)) total += n; }
-            tr.appendChild(td);
-        });
-
-        const tdTotal = document.createElement('td'); tdTotal.className = 'mark-cell total-cell'; tdTotal.textContent = total; tr.appendChild(tdTotal);
-        resultsTableBody.appendChild(tr);
-    });
-}
 
 
 // ── Download ─────────────────────────────────────────────────────

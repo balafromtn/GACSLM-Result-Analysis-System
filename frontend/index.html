@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="GACSLM7 Results Scraper — Bulk download student exam results from Government Arts College (Autonomous), Salem-7">
-    <title>GACSLM7 Results Scraper</title>
+    <meta name="description" content="GACSLM7 Semester Result Analysis — Bulk download student exam results from Government Arts College (Autonomous), Salem-7">
+    <title>GACSLM7 Semester Result Analysis</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -37,7 +37,7 @@
                     </svg>
                 </div>
                 <div>
-                    <h1>GACSLM7 Results Scraper</h1>
+                    <h1>GACSLM7 Semester Result Analysis</h1>
                     <p class="subtitle">Government Arts College (Autonomous), Salem-7</p>
                 </div>
             </div>
@@ -57,20 +57,24 @@
                     <table class="format-table">
                         <thead>
                             <tr>
-                                <th>register_no</th>
+                                <th>reg_no</th>
                                 <th>dob</th>
+                                <th>gender</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
                                 <td>24UCS250904</td>
                                 <td>10/20/2006</td>
+                                <td>Male</td>
                             </tr>
                             <tr>
                                 <td>24UCS250905</td>
                                 <td>11/28/2006</td>
+                                <td>Male</td>
                             </tr>
                             <tr class="format-row-hint">
+                                <td>...</td>
                                 <td>...</td>
                                 <td>...</td>
                             </tr>
@@ -163,20 +167,17 @@
             </section>
 
 
-            <!-- Results Preview -->
+            <!-- Result Analysis -->
             <section class="card results-section" id="resultsSection" style="display:none;">
                 <div class="card-header">
                     <h2>
                         <span class="step-badge">3</span>
-                        Results Preview
+                        Result Analysis
                     </h2>
                 </div>
                 <div class="card-body">
                     <div class="table-wrapper">
-                        <table class="results-table" id="resultsTable">
-                            <thead id="resultsTableHead"></thead>
-                            <tbody id="resultsTableBody"></tbody>
-                        </table>
+                        <iframe id="reportIframe" style="width: 100%; height: 800px; border: none; border-radius: 10px;" sandbox="allow-scripts allow-same-origin"></iframe>
                     </div>
                     
                     <div class="results-actions" style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
