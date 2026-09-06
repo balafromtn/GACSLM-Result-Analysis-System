@@ -536,5 +536,18 @@ arrearBody.innerHTML = students.filter(s=>s.arrear_attempts.length>0).map(s=>{
   return `<tr><td>${s.name}</td><td>${s.reg}</td><td>${list}</td></tr>`;
 }).join('');
 </script>
+
+<script>
+// Send mouse moves to parent for cursor tracking
+document.addEventListener('mousemove', (e) => {
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage({
+      type: 'iframe-mousemove',
+      clientX: e.clientX,
+      clientY: e.clientY
+    }, '*');
+  }
+});
+</script>
 </body>
 </html>

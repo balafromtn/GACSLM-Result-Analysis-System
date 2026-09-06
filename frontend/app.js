@@ -38,7 +38,12 @@ const resultsTableHead = document.getElementById('resultsTableHead');
 const resultsTableBody = document.getElementById('resultsTableBody');
 const downloadBtn = document.getElementById('downloadBtn');
 const cursorGlow = document.getElementById('cursorGlow');
-
+const askAiBtn = document.getElementById('askAiBtn');
+const aiChatModal = document.getElementById('aiChatModal');
+const closeChatBtn = document.getElementById('closeChatBtn');
+const chatForm = document.getElementById('chatForm');
+const chatInput = document.getElementById('chatInput');
+const chatBody = document.getElementById('chatBody');
 let uploadedStudents = [];
 let pollInterval = null;
 
@@ -56,6 +61,22 @@ document.addEventListener('mousemove', (e) => {
     if (!cursorVisible) {
         cursorVisible = true;
         cursorGlow.style.opacity = '1';
+    }
+});
+
+// Receive mouse coordinates from report iframe
+window.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'iframe-mousemove') {
+        const iframe = document.getElementById('reportIframe');
+        if (iframe) {
+            const rect = iframe.getBoundingClientRect();
+            mouseX = e.data.clientX + rect.left;
+            mouseY = e.data.clientY + rect.top;
+            if (!cursorVisible) {
+                cursorVisible = true;
+                cursorGlow.style.opacity = '1';
+            }
+        }
     }
 });
 
@@ -303,4 +324,57 @@ function showError(message) {
     toast.offsetHeight; // force reflow
     toast.classList.add('visible');
     setTimeout(() => { toast.classList.remove('visible'); setTimeout(() => document.body.removeChild(toast), 300); }, 5000);
+}
+
+// ── AI Chat Modal Logic ──────────────────────────────────────────
+if (askAiBtn) {
+    askAiBtn.addEventListener('click', () => {
+        aiChatModal.style.display = 'flex';
+        chatInput.focus();
+    });
+}
+if (closeChatBtn) {
+    closeChatBtn.addEventListener('click', () => {
+        aiChatModal.style.display = 'none';
+    });
+}
+if (chatForm) {
+    chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msg = chatInput.value.trim();
+        if(!msg) return;
+        
+        // append user message
+        const userDiv = document.createElement('div');
+        userDiv.className = 'chat-message user-message';
+        userDiv.textContent = msg;
+        chatBody.appendChild(userDiv);
+        chatInput.value = '';
+        chatBody.scrollTop = chatBody.scrollHeight;
+        
+        // show typing...
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'chat-message ai-message';
+        typingDiv.textContent = 'Thinking...';
+        chatBody.appendChild(typingDiv);
+        chatBody.scrollTop = chatBody.scrollHeight;
+        
+        try {
+            const res = await fetch(`${API_BASE}/ask-ai`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({question: msg})
+            });
+            if(!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || 'Failed to get answer');
+            }
+            const data = await res.json();
+            typingDiv.textContent = data.answer;
+        } catch (err) {
+            typingDiv.textContent = `Error: ${err.message}`;
+            typingDiv.style.color = '#f43f5e';
+        }
+        chatBody.scrollTop = chatBody.scrollHeight;
+    });
 }

@@ -20,9 +20,19 @@ import threading
 import logging
 import os
 import sys
+import json
 from io import BytesIO, StringIO
 from datetime import datetime
 from collections import deque
+from pydantic import BaseModel
+from dotenv import load_dotenv
+from groq import Groq
+
+load_dotenv()
+try:
+    groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+except Exception as e:
+    groq_client = None
 
 from scraper import create_driver, scrape_student
 from parser import parse_result_html
@@ -378,6 +388,52 @@ async def download_report():
         content=report_html,
         media_type="text/html",
     )
+
+
+class ChatRequest(BaseModel):
+    question: str
+
+
+@app.post("/ask-ai")
+async def ask_ai(req: ChatRequest):
+    """Answer questions based on the scraped results."""
+    if not groq_client:
+        raise HTTPException(status_code=500, detail="Groq API key not configured")
+
+    with state_lock:
+        results = state["results"]
+
+    if not results:
+        raise HTTPException(status_code=400, detail="No data available. Please scrape results first.")
+
+    # Convert results into a concise prompt text (avoiding overly massive JSON)
+    prompt_data = json.dumps(results, indent=2)
+
+    system_prompt = f"""You are an intelligent AI assistant analyzing student exam results.
+    You will be provided with the raw JSON data of the students' results.
+    Answer the user's question accurately based ONLY on this data.
+    If the question is unrelated to the report or the student data, politely decline to answer.
+    
+    IMPORTANT: You MUST keep your response concise, to a maximum of 3 sentences or 3 lines.
+    
+    Data:
+    {prompt_data}
+    """
+
+    try:
+        chat_completion = groq_client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": req.question}
+            ],
+            model="llama-3.1-8b-instant",
+            max_tokens=150,
+            temperature=0.3
+        )
+        return {"answer": chat_completion.choices[0].message.content.strip()}
+    except Exception as e:
+        logger.error(f"Groq API Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error communicating with AI service")
 
 
 # ── Serve frontend ──────────────────────────────────────────────────

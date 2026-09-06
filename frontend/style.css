@@ -256,6 +256,43 @@ body {
 .app-footer { text-align: center; padding: 24px 0; margin-top: auto; }
 .app-footer p { font-size: 0.8rem; color: var(--text-muted); letter-spacing: 0.02em; }
 
+/* ── AI Chat Modal ────────────────────────────────────────────── */
+.chat-modal {
+    position: fixed; bottom: 20px; left: 20px; width: 350px; max-height: 500px;
+    background: var(--bg-card); border: 1px solid var(--bg-glass-border); border-radius: var(--radius-lg);
+    backdrop-filter: blur(30px); box-shadow: var(--shadow-md); z-index: 1000;
+    display: flex; flex-direction: column; overflow: hidden;
+    animation: fadeInUp 0.3s ease-out;
+}
+.chat-header {
+    padding: 14px 20px; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--bg-glass-border);
+    display: flex; justify-content: space-between; align-items: center;
+}
+.chat-header h3 { font-size: 1rem; color: var(--text-primary); font-weight: 600; margin: 0; }
+.close-btn { background: none; border: none; color: var(--text-secondary); font-size: 1.5rem; cursor: pointer; transition: var(--transition-fast); }
+.close-btn:hover { color: var(--text-primary); }
+.chat-body {
+    padding: 16px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+    min-height: 200px; max-height: 350px;
+}
+.chat-message { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 0.85rem; line-height: 1.4; word-wrap: break-word;}
+.ai-message { background: rgba(99,102,241,0.15); color: var(--text-primary); border-top-left-radius: 4px; align-self: flex-start; }
+.user-message { background: var(--gradient-primary); color: white; border-top-right-radius: 4px; align-self: flex-end; }
+.chat-footer { padding: 12px; border-top: 1px solid var(--bg-glass-border); background: rgba(0,0,0,0.1); }
+.chat-footer form { display: flex; gap: 8px; }
+.chat-footer input {
+    flex: 1; background: var(--bg-secondary); border: 1px solid var(--bg-glass-border);
+    color: var(--text-primary); border-radius: 20px; padding: 8px 14px; font-size: 0.85rem;
+    outline: none; transition: border-color var(--transition-fast);
+}
+.chat-footer input:focus { border-color: var(--accent-indigo); }
+.send-btn {
+    background: var(--gradient-primary); color: white; border: none; border-radius: 50%;
+    width: 36px; height: 36px; display: flex; justify-content: center; align-items: center;
+    cursor: pointer; transition: transform var(--transition-fast); flex-shrink: 0;
+}
+.send-btn:hover { transform: scale(1.05); }
+
 /* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 640px) {
     .app-container { padding: 16px 12px; }

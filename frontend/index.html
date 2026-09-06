@@ -211,6 +211,28 @@
             <p>🔒 Privacy: Zero data retained after your session ends</p>
         </footer>
     </div>
+    <!-- AI Chat Modal -->
+    <div id="aiChatModal" class="chat-modal" style="display: none;">
+        <div class="chat-header">
+            <h3>✨ Ask AI</h3>
+            <button id="closeChatBtn" class="close-btn">&times;</button>
+        </div>
+        <div class="chat-body" id="chatBody">
+            <div class="chat-message ai-message">
+                <p>Hello! Ask me anything about the generated student results.</p>
+            </div>
+        </div>
+        <div class="chat-footer">
+            <form id="chatForm">
+                <input type="text" id="chatInput" placeholder="Ask a question..." required>
+                <button type="submit" class="send-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                        <path d="M22 2L11 13M22 2L15 22L11 13M11 13L2 9L22 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>
