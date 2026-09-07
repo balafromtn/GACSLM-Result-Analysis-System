@@ -9,6 +9,8 @@ A web application that automates scraping student exam results from the **Govern
 - **Smart Retry** — Each student is retried up to 3 times if the portal is slow or unresponsive
 - **File Upload** — Accepts both `.xlsx` (Excel) and `.csv` file formats
 - **Live Progress** — Real-time progress bar, student-by-student status (✓ success / ✗ failed)
+- **Visual Dashboard** — Generates an interactive HTML dashboard with charts and class insights
+- **✨ Ask AI** — Chat interface to query class performance data securely using LLMs
 - **Consolidated Export** — All results merged into a single Excel file with dynamically discovered subject columns
 - **Headless Browser** — Runs Chrome in the background (no visible browser window)
 
@@ -29,6 +31,9 @@ A web application that automates scraping student exam results from the **Govern
 | `pandas` | Data manipulation and DataFrame building |
 | `openpyxl` | Excel file reading and writing |
 | `python-multipart` | File upload handling in FastAPI |
+| `jinja2` | Generating the HTML visual report dashboard |
+| `groq` | Connecting to the Groq API for the Ask AI feature |
+| `python-dotenv` | Loading environment variables from a `.env` file |
 
 ## 🚀 How to Run
 
@@ -47,41 +52,50 @@ pip install -r requirements.txt
 
 This installs: `fastapi`, `uvicorn[standard]`, `selenium`, `webdriver-manager`, `beautifulsoup4`, `pandas`, `openpyxl`, and `python-multipart`.
 
-### 3. Start the server
+### 3. Configure API Keys
+
+Create a `.env` file in the `backend/` directory:
+
+```env
+GROQ_API_KEY=your_groq_api_key_here
+```
+
+### 4. Start the server
 
 ```bash
 python -m uvicorn backend.main:app --reload
 ```
 
-### 4. Open in browser
+### 5. Open in browser
 
 Go to [http://127.0.0.1:8000](http://127.0.0.1:8000)
 
 ## 📄 Input File Format
 
-The input file must be either `.xlsx` (Excel) or `.csv` with **exactly two columns**:
+The input file must be either `.xlsx` (Excel) or `.csv` with **at least three required columns**:
 
 | Column | Header Name | Format | Example |
 |--------|-------------|--------|---------|
-| 1 | `register_no` | 2-digit year + 3-letter dept code + 6-digit number | `24UCS250904` |
+| 1 | `reg_no` | 2-digit year + 3-letter dept code + 6-digit number | `24UCS250904` |
 | 2 | `dob` | Date of birth in **mm/dd/yyyy** | `10/20/2006` |
+| 3 | `gender` | Male / Female (used for stats) | `Male` |
 
 ### Example `.xlsx` / `.csv`
 
-| register_no | dob |
-|-------------|------|
-| 24UCS250904 | 10/20/2006 |
-| 24UCS250905 | 11/28/2006 |
-| 24UCS250906 | 03/15/2006 |
-| ... | ... |
+| reg_no | dob | gender |
+|-------------|------|--------|
+| 24UCS250904 | 10/20/2006 | Male |
+| 24UCS250905 | 11/28/2006 | Female |
+| 24UCS250906 | 03/15/2006 | Male |
+| ... | ... | ... |
 
 ### Important Notes
 
-- Column headers **must** be exactly `register_no` and `dob` (case-insensitive)
-- DOB supports multiple formats: `mm/dd/yyyy`, `dd/mm/yyyy`, `yyyy-mm-dd`, `dd-mm-yyyy`
-- The recommended format is `mm/dd/yyyy` to avoid ambiguity
-- If using `.csv`, ensure the file is UTF-8 encoded
-- No extra columns, empty rows, or merged cells — keep it simple
+- Column headers **must** include `reg_no`, `dob`, and `gender` (case-insensitive).
+- DOB supports multiple formats: `mm/dd/yyyy`, `dd/mm/yyyy`, `yyyy-mm-dd`, `dd-mm-yyyy`.
+- The recommended format is `mm/dd/yyyy` to avoid ambiguity.
+- If using `.csv`, ensure the file is UTF-8 encoded.
+- No extra columns, empty rows, or merged cells — keep it simple.
 
 ## 🔄 How It Works
 
