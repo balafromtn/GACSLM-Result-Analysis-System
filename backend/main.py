@@ -26,13 +26,10 @@ from datetime import datetime
 from collections import deque
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from groq import Groq
+import httpx
 
 load_dotenv()
-try:
-    groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-except Exception as e:
-    groq_client = None
+COLAB_PANDASAI_URL = os.environ.get("COLAB_PANDASAI_URL")
 
 from scraper import create_driver, scrape_student
 from parser import parse_result_html
@@ -396,9 +393,9 @@ class ChatRequest(BaseModel):
 
 @app.post("/ask-ai")
 async def ask_ai(req: ChatRequest):
-    """Answer questions based on the scraped results."""
-    if not groq_client:
-        raise HTTPException(status_code=500, detail="Groq API key not configured")
+    """Answer questions based on the scraped results using Colab PandasAI."""
+    if not COLAB_PANDASAI_URL:
+        raise HTTPException(status_code=500, detail="Colab PandasAI URL not configured in .env")
 
     with state_lock:
         results = state["results"]
@@ -406,34 +403,28 @@ async def ask_ai(req: ChatRequest):
     if not results:
         raise HTTPException(status_code=400, detail="No data available. Please scrape results first.")
 
-    # Convert results into a concise prompt text (avoiding overly massive JSON)
-    prompt_data = json.dumps(results, indent=2)
-
-    system_prompt = f"""You are an intelligent AI assistant analyzing student exam results.
-    You will be provided with the raw JSON data of the students' results.
-    Answer the user's question accurately based ONLY on this data.
-    If the question is unrelated to the report or the student data, politely decline to answer.
-    
-    IMPORTANT: You MUST keep your response concise, to a maximum of 3 sentences or 3 lines.
-    
-    Data:
-    {prompt_data}
-    """
+    payload = {
+        "query": req.question,
+        "data": results
+    }
 
     try:
-        chat_completion = groq_client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": req.question}
-            ],
-            model="llama-3.1-8b-instant",
-            max_tokens=150,
-            temperature=0.3
-        )
-        return {"answer": chat_completion.choices[0].message.content.strip()}
+        # Use a longer timeout as PandasAI model inference might take a while
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(COLAB_PANDASAI_URL, json=payload)
+            response.raise_for_status()
+            
+            # Assuming the Colab endpoint returns {"answer": "..."}
+            data = response.json()
+            answer = data.get("answer") or str(data)
+            return {"answer": str(answer).strip()}
+            
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Colab API HTTP Error: {e.response.status_code} - {e.response.text}")
+        raise HTTPException(status_code=502, detail=f"Colab API Error: {e.response.text}")
     except Exception as e:
-        logger.error(f"Groq API Error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error communicating with AI service")
+        logger.error(f"Colab API Connection Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to connect to the Colab LLM. Ensure your notebook is running.")
 
 
 # ── Serve frontend ──────────────────────────────────────────────────

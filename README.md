@@ -57,13 +57,13 @@ This installs: `fastapi`, `uvicorn[standard]`, `selenium`, `webdriver-manager`, 
 Create a `.env` file in the `backend/` directory:
 
 ```env
-GROQ_API_KEY=your_groq_api_key_here
+COLAB_PANDASAI_URL=your_colab_pandasai_url_here
 ```
 
 ### 4. Start the server
 
 ```bash
-python -m uvicorn backend.main:app --reload
+python -m uvicorn main:app --reload
 ```
 
 ### 5. Open in browser
