@@ -26,21 +26,32 @@ WAIT_TIMEOUT = 20
 
 
 def create_driver(headless: bool = True) -> webdriver.Chrome:
-    """Create and return a Chrome WebDriver instance."""
+    """Create and return a Chrome WebDriver instance with fallback options."""
     options = Options()
     if headless:
         options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
     options.add_argument("--disable-extensions")
     options.add_argument("--log-level=3")
 
-    service = ChromeService(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=options)
-    return driver
+    # 1. Try ChromeDriverManager first
+    try:
+        service = ChromeService(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=options)
+        return driver
+    except Exception as e:
+        logger.warning(f"ChromeDriverManager failed ({e}), falling back to Selenium Manager...")
+
+    # 2. Fall back to Selenium Manager (built into Selenium 4.10+)
+    try:
+        driver = webdriver.Chrome(options=options)
+        return driver
+    except Exception as e:
+        logger.error(f"Failed to create Chrome WebDriver: {e}")
+        raise
 
 
 def _js_set_value(driver, element, value):
@@ -70,6 +81,11 @@ def scrape_student(driver: webdriver.Chrome, register_no: str, dob: str) -> str 
             logger.info(f"[Attempt {attempt}/{MAX_RETRIES}] Scraping {register_no}")
 
             driver.get(PORTAL_URL)
+            try:
+                driver.delete_all_cookies()
+            except Exception:
+                pass
+
             wait = WebDriverWait(driver, WAIT_TIMEOUT)
 
             # Fill register number field
@@ -110,6 +126,12 @@ def scrape_student(driver: webdriver.Chrome, register_no: str, dob: str) -> str 
             table = wait.until(EC.presence_of_element_located((By.TAG_NAME, "table")))
             table_html = table.get_attribute("outerHTML")
 
+            # Clean cookies after scrape to avoid session bleed
+            try:
+                driver.delete_all_cookies()
+            except Exception:
+                pass
+
             logger.info(f"Successfully scraped {register_no}")
             return table_html
 
@@ -117,6 +139,10 @@ def scrape_student(driver: webdriver.Chrome, register_no: str, dob: str) -> str 
             logger.warning(
                 f"Attempt {attempt}/{MAX_RETRIES} failed for {register_no}: {e}"
             )
+            try:
+                driver.delete_all_cookies()
+            except Exception:
+                pass
             if attempt < MAX_RETRIES:
                 time.sleep(1)
             else:

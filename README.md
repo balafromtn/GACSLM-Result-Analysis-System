@@ -1,4 +1,4 @@
-﻿# 🎓 Academic Intelligence Dashboard
+# 🎓 Academic Intelligence Dashboard
 
 A full-stack web application that automates scraping student exam results from the **Government Arts College (Autonomous), Salem-7** [SLMGACCOE eCampus portal](https://slmgaccoe.edecampus.com/student/index.php). Upload a spreadsheet, scrape results in bulk, view an interactive analytics dashboard, and chat with an AI assistant to query class performance — all from one sleek collegiate-themed interface.
 
@@ -14,7 +14,7 @@ A full-stack web application that automates scraping student exam results from t
 | **📊 Live Progress** | Real-time progress bar + per-student success/failure status as scraping runs |
 | **📋 Consolidated Export** | All results merged into a single `student_results.xlsx` with dynamic subject columns |
 | **📈 Visual Dashboard** | Auto-generated interactive HTML report with charts, class insights, and statistics |
-| **💬 Ask AI (Chat)** | Natural-language chat interface powered by Qwen3:4b via a Colab-hosted PandasAI server tunnelled through Cloudflare |
+| **💬 Ask AI (Chat)** | Natural-language chat interface powered by local Ollama (`qwen3.5:4b`) |
 | **🌗 Light & Dark Theme** | Dual-theme UI styled after the GAC Salem-7 collegiate color palette |
 | **📝 Live Logs** | In-browser scrolling log panel showing scraper events in real time |
 
@@ -38,7 +38,7 @@ A full-stack web application that automates scraping student exam results from t
 | `openpyxl>=3.1.2` | Reading `.xlsx` input and writing the output Excel file |
 | `python-multipart>=0.0.9` | Handles multipart file uploads in FastAPI |
 | `jinja2>=3.1.2` | Renders the HTML analytics dashboard report |
-| `httpx>=0.27.0` | Async HTTP client to call the Colab AI server |
+| `httpx>=0.27.0` | Async HTTP client to call the local Ollama LLM endpoint |
 | `python-dotenv>=1.0.0` | Loads environment variables from `.env` |
 
 ---
@@ -55,7 +55,6 @@ cd GACSLM-Result-Analysis-System
 ### 2. Create and activate a virtual environment
 
 ```bash
-cd backend
 python -m venv venv
 
 # Windows
@@ -73,13 +72,15 @@ pip install -r requirements.txt
 
 ### 4. Configure the environment
 
-Create (or edit) `backend/.env`:
+Create (or edit) `backend/.env` (copy from `backend/.env.example`):
 
 ```env
-COLAB_PANDASAI_URL=https://<your-cloudflare-tunnel-subdomain>.trycloudflare.com/ask
+LLM_PROVIDER=ollama
+LLM_API_BASE=http://localhost:11434/v1
+LLM_MODEL=qwen3.5:4b
+LLM_API_KEY=ollama
+LLM_TIMEOUT=180.0
 ```
-
-> The URL is generated each time you run the Colab notebook (`Academic_LLM_Server.ipynb`). Copy the tunnel URL printed in the notebook output and paste it here.
 
 ### 5. Start the backend server
 
@@ -98,18 +99,31 @@ Navigate to: [http://127.0.0.1:8000](http://127.0.0.1:8000)
 
 ---
 
-## 🤖 AI Chat Setup (Google Colab)
+## 🤖 AI Chat Setup (Local Ollama)
 
-The **Ask AI** feature requires a separately running Google Colab notebook that hosts the LLM server.
+The **Ask AI** feature connects directly to locally hosted Ollama for natural language queries over the scraped student exam dataset.
 
-1. Open `Academic_LLM_Server.ipynb` in Google Colab.
-2. Run all cells — the notebook will:
-   - Install `pandasai`, `ollama`, and `cloudflared`
-   - Pull the **Qwen3:4b** model via Ollama
-   - Start a Flask API server on port `5000`
-   - Create a **Cloudflare Tunnel** and print a public HTTPS URL
-3. Copy the printed tunnel URL (e.g. `https://xxxx.trycloudflare.com`) and set it in `backend/.env` as shown above.
-4. The local FastAPI backend will proxy AI queries to this Colab endpoint via `POST /ask-ai`.
+1. Install [Ollama](https://ollama.com/) on your local machine.
+2. Pull the recommended model:
+   ```bash
+   ollama pull qwen3.5:4b
+   ```
+3. Start Ollama (if not already running as a system service):
+   ```bash
+   ollama serve
+   ```
+4. Verify the model is available:
+   ```bash
+   ollama list
+   ```
+5. Ensure your `backend/.env` has the local Ollama configuration:
+   ```env
+   LLM_PROVIDER=ollama
+   LLM_API_BASE=http://localhost:11434/v1
+   LLM_MODEL=qwen3.5:4b
+   LLM_API_KEY=ollama
+   ```
+   No Google Colab instance or Cloudflare Tunnel is required.
 
 ---
 
@@ -163,7 +177,7 @@ An optional **`community`** column is also supported and included in the analyti
 - **Download Excel** button fetches `student_results.xlsx` containing all scraped results in a unified sheet with dynamic subject columns
 
 ### 💬 Ask AI
-- Chat interface powered by **Qwen3:4b** running on Google Colab via **PandasAI**
+- Chat interface powered by **qwen3.5:4b** running locally via **Ollama**
 - Example queries:
   - *"How many students failed more than 2 subjects?"*
   - *"What is the class average for subject 24UCS101?"*
@@ -196,8 +210,8 @@ An optional **`community`** column is also supported and included in the analyti
 │     GET /report   → Interactive HTML analytics dashboard    │
 ├─────────────────────────────────────────────────────────────┤
 │  5. ASK AI                                                  │
-│     POST /ask-ai → proxies question + scraped data to       │
-│     Colab PandasAI endpoint → returns LLM answer            │
+│     POST /ask-ai → sends question + scraped data to local   │
+│     Ollama endpoint → returns LLM answer                    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -213,7 +227,7 @@ An optional **`community`** column is also supported and included in the analyti
 | `GET` | `/logs` | Recent log entries (last 200) |
 | `GET` | `/download` | Download `student_results.xlsx` |
 | `GET` | `/report` | Fetch the generated HTML analytics dashboard |
-| `POST` | `/ask-ai` | Send a question; proxied to the Colab LLM server |
+| `POST` | `/ask-ai` | Send a question; answered by local Ollama |
 
 ---
 
@@ -221,8 +235,10 @@ An optional **`community`** column is also supported and included in the analyti
 
 ```
 academic-intelligence-system/
+├── requirements.txt          # Python dependencies
 ├── backend/
-│   ├── .env                  # Environment config (COLAB_PANDASAI_URL)
+│   ├── .env                  # Environment config (LLM_API_BASE, LLM_MODEL)
+│   ├── .env.example          # Sample environment configuration
 │   ├── __init__.py
 │   ├── main.py               # FastAPI app, all API endpoints, in-memory state
 │   ├── scraper.py            # Selenium headless Chrome automation

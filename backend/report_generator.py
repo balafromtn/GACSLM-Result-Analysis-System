@@ -1,3 +1,4 @@
+import os
 import json
 import statistics
 from jinja2 import Environment, FileSystemLoader
@@ -66,7 +67,7 @@ def generate_report_html(scraped_results: list[dict]) -> str:
 
     for result in scraped_results:
         name = result.get("name", "UNKNOWN")
-        reg = result.get("register_no", "UNKNOWN")
+        reg = result.get("register_no") or result.get("reg_no", "UNKNOWN")
         gender = result.get("gender", "UNKNOWN")
         
         marks_dict = {}
@@ -225,7 +226,8 @@ def generate_report_html(scraped_results: list[dict]) -> str:
         "female_core_avg": female_core_avg
     }
 
-    env = Environment(loader=FileSystemLoader("templates"))
+    templates_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
+    env = Environment(loader=FileSystemLoader(templates_dir))
     template = env.get_template("report.html")
     
     html_out = template.render(

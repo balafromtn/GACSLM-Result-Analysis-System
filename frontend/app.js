@@ -326,6 +326,108 @@ function showError(message) {
     setTimeout(() => { toast.classList.remove('visible'); setTimeout(() => document.body.removeChild(toast), 300); }, 5000);
 }
 
+// ── Markdown Formatter for AI Responses ─────────────────────────────
+function formatMarkdown(text) {
+    if (!text) return '';
+
+    // 1. Normalize inline bullet points if model bundled them onto one line
+    // e.g., "... topper is **BALAJI M**. * **Name**: BALAJI M * **Rank**: 1"
+    let str = text
+        .replace(/([.!?:\w\)])\s+([*•\-]\s+)/, '$1\n\n$2')
+        .replace(/([.!?:\w\)])\s+([*•\-]\s+)/g, '$1\n$2')
+        .replace(/([.!?:\w\)])\s+(\d+\.\s+)/g, '$1\n$2');
+
+    const escapeHtml = (s) => s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+    const lines = str.split('\n');
+    let html = '';
+    let inUl = false;
+    let inOl = false;
+    let inP = false;
+
+    const closeList = () => {
+        if (inUl) { html += '</ul>'; inUl = false; }
+        if (inOl) { html += '</ol>'; inOl = false; }
+    };
+    const closeP = () => {
+        if (inP) { html += '</p>'; inP = false; }
+    };
+
+    const formatInline = (inlineStr) => {
+        return escapeHtml(inlineStr)
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+            .replace(/(^|[^*])\*([^*]+)\*([^*]|$)/g, '$1<em>$2</em>$3')
+            .replace(/(^|[^_])_([^_]+)_([^_]|$)/g, '$1<em>$2</em>$3');
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) {
+            closeList();
+            closeP();
+            continue;
+        }
+
+        // Headers
+        if (line.startsWith('### ')) {
+            closeList();
+            closeP();
+            html += `<h4>${formatInline(line.substring(4))}</h4>`;
+            continue;
+        } else if (line.startsWith('## ')) {
+            closeList();
+            closeP();
+            html += `<h3>${formatInline(line.substring(3))}</h3>`;
+            continue;
+        } else if (line.startsWith('# ')) {
+            closeList();
+            closeP();
+            html += `<h2>${formatInline(line.substring(2))}</h2>`;
+            continue;
+        }
+
+        // Unordered list item (* or - or •)
+        const ulMatch = line.match(/^([*•\-]|&bull;)\s+(.+)$/);
+        if (ulMatch) {
+            closeP();
+            if (inOl) { html += '</ol>'; inOl = false; }
+            if (!inUl) { html += '<ul>'; inUl = true; }
+            html += `<li>${formatInline(ulMatch[2])}</li>`;
+            continue;
+        }
+
+        // Ordered list item (1. item)
+        const olMatch = line.match(/^(\d+)\.\s+(.+)$/);
+        if (olMatch) {
+            closeP();
+            if (inUl) { html += '</ul>'; inUl = false; }
+            if (!inOl) { html += '<ol>'; inOl = true; }
+            html += `<li>${formatInline(olMatch[2])}</li>`;
+            continue;
+        }
+
+        // Normal paragraph text
+        closeList();
+        if (!inP) {
+            html += `<p>${formatInline(line)}`;
+            inP = true;
+        } else {
+            html += `<br>${formatInline(line)}`;
+        }
+    }
+
+    closeList();
+    closeP();
+    return html;
+}
+
 // ── AI Chat Modal Logic ──────────────────────────────────────────
 if (askAiBtn) {
     askAiBtn.addEventListener('click', () => {
@@ -370,7 +472,7 @@ if (chatForm) {
                 throw new Error(err.detail || 'Failed to get answer');
             }
             const data = await res.json();
-            typingDiv.textContent = data.answer;
+            typingDiv.innerHTML = formatMarkdown(data.answer);
         } catch (err) {
             typingDiv.textContent = `Error: ${err.message}`;
             typingDiv.style.color = '#f43f5e';

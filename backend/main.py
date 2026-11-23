@@ -28,13 +28,30 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import httpx
 
+# Ensure backend directory is in sys.path so sibling imports work regardless of CWD
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
+
+load_dotenv(os.path.join(BACKEND_DIR, ".env"))
 load_dotenv()
-COLAB_PANDASAI_URL = os.environ.get("COLAB_PANDASAI_URL")
+
+# LLM Configuration (supports local Ollama OpenAI-compatible endpoint)
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "ollama")
+LLM_API_BASE = os.environ.get("LLM_API_BASE", "http://localhost:11434/v1")
+LLM_MODEL = os.environ.get("LLM_MODEL", "qwen3.5:4b")
+LLM_API_KEY = os.environ.get("LLM_API_KEY", "ollama")
+LLM_TIMEOUT = float(os.environ.get("LLM_TIMEOUT", "180.0"))
 
 from scraper import create_driver, scrape_student
 from parser import parse_result_html
 from exporter import build_dataframe, export_to_excel_bytes
 from report_generator import generate_report_html
+from analytics import (
+    AcademicAnalytics,
+    build_academic_context_and_intent,
+    sanitize_llm_response,
+)
 
 # ── Logging setup (file + console + in-memory ring buffer) ───────
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -270,7 +287,30 @@ def _scrape_all():
 
             logger.info(f"[{i}/{len(students)}] Scraping {reg}...")
 
-            raw_html = scrape_student(driver, reg, dob)
+            # Ensure driver is alive before scraping; recreate if it crashed
+            try:
+                _ = driver.current_url
+            except Exception:
+                logger.warning("WebDriver is unresponsive or disconnected. Recreating driver...")
+                try:
+                    driver.quit()
+                except Exception:
+                    pass
+                driver = create_driver(headless=True)
+
+            raw_html = None
+            try:
+                raw_html = scrape_student(driver, reg, dob)
+            except Exception as e:
+                logger.error(f"Scraper error for {reg}: {e}")
+                try:
+                    driver.quit()
+                except Exception:
+                    pass
+                try:
+                    driver = create_driver(headless=True)
+                except Exception:
+                    pass
 
             if raw_html:
                 parsed = parse_result_html(raw_html)
@@ -278,6 +318,7 @@ def _scrape_all():
                     # Inject additional fields for export
                     parsed["gender"] = student.get("gender", "UNKNOWN")
                     parsed["community"] = student.get("community", "UNKNOWN")
+                    parsed["register_no"] = reg
                     parsed["reg_no"] = reg
 
                     with state_lock:
@@ -393,38 +434,115 @@ class ChatRequest(BaseModel):
 
 @app.post("/ask-ai")
 async def ask_ai(req: ChatRequest):
-    """Answer questions based on the scraped results using Colab PandasAI."""
-    if not COLAB_PANDASAI_URL:
-        raise HTTPException(status_code=500, detail="Colab PandasAI URL not configured in .env")
-
+    """Answer questions based on the scraped results using deterministic Python analytics + local Ollama."""
     with state_lock:
         results = state["results"]
 
     if not results:
         raise HTTPException(status_code=400, detail="No data available. Please scrape results first.")
 
+    api_base = LLM_API_BASE.rstrip("/")
+    if api_base.endswith("/chat/completions"):
+        endpoint = api_base
+    elif api_base.endswith("/v1"):
+        endpoint = f"{api_base}/chat/completions"
+    else:
+        endpoint = f"{api_base}/v1/chat/completions"
+
+    # Step 1: Compute verified academic metrics in Python (toppers, ranks, pass %, failed lists)
+    analytics = AcademicAnalytics(results)
+    verified_context, intent = build_academic_context_and_intent(req.question, analytics)
+
+    # Step 2: Formulate prompt with verified conclusions, forbidding raw thinking output
+    system_prompt = (
+        "You are an academic analysis assistant for student examination results. "
+        "You are provided with pre-calculated, verified academic facts and statistics.\n\n"
+        "STRICT GUIDELINES:\n"
+        "1. Answer the question directly, concisely, and accurately using ONLY the verified facts provided below.\n"
+        "2. Do NOT show any 'Thinking Process:', chain of thought, or step-by-step calculations.\n"
+        "3. Provide ONLY the final answer and a short natural-language explanation.\n"
+        "4. Format your answer with clean Markdown:\n"
+        "   - Separate paragraphs with a blank line.\n"
+        "   - When listing student details or statistics, put EACH attribute or item on its own new line starting with '* ' or '- '.\n"
+        "   - Never bunch multiple bullet points onto the same line.\n"
+        "   - Use **bold** for key names, register numbers, ranks, and totals.\n"
+        "5. If there is a tie, mention all tied students.\n"
+        "6. Never guess, invent, or recalculate totals or statistics.\n\n"
+        f"{verified_context}"
+    )
+
+    headers = {"Content-Type": "application/json"}
+    if LLM_API_KEY:
+        headers["Authorization"] = f"Bearer {LLM_API_KEY}"
+
     payload = {
-        "query": req.question,
-        "data": results
+        "model": LLM_MODEL,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": req.question}
+        ],
+        "temperature": 0.1,
+        "keep_alive": "15m"
     }
 
     try:
-        # Use a longer timeout as PandasAI model inference might take a while
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(COLAB_PANDASAI_URL, json=payload)
+        async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as client:
+            response = await client.post(endpoint, json=payload, headers=headers)
+
+            if response.status_code == 404:
+                error_detail = response.text
+                logger.error(f"Ollama model '{LLM_MODEL}' not found: {error_detail}")
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Model '{LLM_MODEL}' not found in Ollama. Run 'ollama pull {LLM_MODEL}' in your terminal."
+                )
+
             response.raise_for_status()
-            
-            # Assuming the Colab endpoint returns {"answer": "..."}
             data = response.json()
-            answer = data.get("answer") or str(data)
-            return {"answer": str(answer).strip()}
-            
+
+            # Extract answer from OpenAI-compatible choices
+            raw_answer = ""
+            choices = data.get("choices", [])
+            if choices:
+                message = choices[0].get("message", {})
+                raw_answer = message.get("content") or ""
+                # If content is empty but reasoning is present, use reasoning as source
+                if not raw_answer and "reasoning" in message:
+                    raw_answer = message.get("reasoning", "")
+            else:
+                raw_answer = data.get("answer") or str(data)
+
+            # Sanitize response: strip any chain-of-thought or "Thinking Process:" artifacts
+            final_answer = sanitize_llm_response(raw_answer)
+
+            # Fallback if model output is blank or completely stripped of content
+            if not final_answer or "Thinking Process:" in final_answer:
+                clean_ctx = verified_context.replace("### Verified Academic Calculations: ", "")
+                clean_ctx = clean_ctx.replace("### Verified Academic Dataset Summary", "Class Summary:")
+                final_answer = clean_ctx.strip()
+
+            return {"answer": final_answer}
+
+    except httpx.ConnectError:
+        logger.error(f"Failed to connect to Ollama at {endpoint}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Could not connect to Ollama at {LLM_API_BASE}. Ensure Ollama is running locally (e.g., 'ollama serve')."
+        )
+    except httpx.TimeoutException:
+        logger.error(f"Ollama inference timed out after {LLM_TIMEOUT}s")
+        raise HTTPException(
+            status_code=504,
+            detail=f"Inference timed out after {int(LLM_TIMEOUT)} seconds. The model may still be loading or generating a response."
+        )
     except httpx.HTTPStatusError as e:
-        logger.error(f"Colab API HTTP Error: {e.response.status_code} - {e.response.text}")
-        raise HTTPException(status_code=502, detail=f"Colab API Error: {e.response.text}")
+        logger.error(f"Ollama API HTTP Error: {e.response.status_code} - {e.response.text}")
+        raise HTTPException(status_code=e.response.status_code, detail=f"Ollama API Error: {e.response.text}")
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Colab API Connection Error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to connect to the Colab LLM. Ensure your notebook is running.")
+        logger.error(f"Unexpected error querying Ollama: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to process query with AI service.")
 
 
 # ── Serve frontend ──────────────────────────────────────────────────

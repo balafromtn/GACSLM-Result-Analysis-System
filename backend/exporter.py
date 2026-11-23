@@ -43,7 +43,7 @@ def build_dataframe(student_results: list[dict]) -> pd.DataFrame:
     for student in student_results:
         row = {
             "Name": student.get("name", "UNKNOWN"),
-            "Register No": student.get("register_no", "UNKNOWN"),
+            "Register No": student.get("register_no") or student.get("reg_no", "UNKNOWN"),
             "Gender": student.get("gender", "UNKNOWN"),
             "Community": student.get("community", "UNKNOWN"),
         }
