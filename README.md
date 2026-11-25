@@ -15,7 +15,7 @@ A full-stack web application that automates scraping student exam results from t
 | **📋 Consolidated Export** | All results merged into a single `student_results.xlsx` with dynamic subject columns |
 | **📈 Visual Dashboard** | Auto-generated interactive HTML report with charts, class insights, and statistics |
 | **💬 Ask AI (Chat)** | Natural-language chat interface powered by local Ollama (`qwen3.5:4b`) |
-| **🌗 Light & Dark Theme** | Dual-theme UI styled after the GAC Salem-7 collegiate color palette |
+| **🏛️ Collegiate Light Theme** | Clean UI styled after the official GAC Salem-7 collegiate palette |
 | **📝 Live Logs** | In-browser scrolling log panel showing scraper events in real time |
 
 ---
@@ -83,8 +83,6 @@ LLM_TIMEOUT=180.0
 ```
 
 ### 5. Start the backend server
-
-Make sure you are inside the `backend/` directory:
 
 ```bash
 cd backend
@@ -240,17 +238,26 @@ academic-intelligence-system/
 │   ├── .env                  # Environment config (LLM_API_BASE, LLM_MODEL)
 │   ├── .env.example          # Sample environment configuration
 │   ├── __init__.py
-│   ├── main.py               # FastAPI app, all API endpoints, in-memory state
+│   ├── main.py               # FastAPI app, API endpoints, state management
 │   ├── scraper.py            # Selenium headless Chrome automation
 │   ├── parser.py             # BeautifulSoup result table parser
 │   ├── exporter.py           # Pandas DataFrame + Excel export
 │   ├── report_generator.py   # Jinja2 HTML analytics dashboard generator
-│   ├── requirements.txt      # Python dependencies
+│   ├── analytics.py          # Deterministic analytics helper functions
+│   ├── intelligence/         # Generic Hybrid Academic Data Intelligence Engine
+│   │   ├── __init__.py
+│   │   ├── schema.py         # Dynamic schema discovery & subject alias resolution
+│   │   ├── engine.py         # Deterministic query execution engine (Pandas/Python)
+│   │   ├── planner.py        # Schema-aware query planner & intent classifier
+│   │   ├── memory.py         # Bounded conversation memory & follow-up resolver
+│   │   └── dispatcher.py     # Dual-path execution orchestrator (Path A / Path B)
 │   └── templates/            # Jinja2 HTML templates for the report
 ├── frontend/
 │   ├── index.html            # Single-page app structure
-│   ├── style.css             # GAC Salem-7 collegiate themed CSS (light + dark)
+│   ├── style.css             # GAC Salem-7 collegiate light theme CSS
 │   └── app.js                # Upload, scraping, live status, chat logic
+├── tests/
+│   └── test_hybrid_engine.py # Automated test suite for intelligence engine
 ├── logs/
 │   └── scraper.log           # Persistent scraper log file
 ├── .gitignore
@@ -259,18 +266,47 @@ academic-intelligence-system/
 
 ---
 
+## 🧠 Hybrid Academic Data Intelligence Engine
+
+The application features a **Dual-Path Hybrid Academic Intelligence Engine** designed to answer natural language questions about student exam results accurately and instantaneously:
+
+### 1. Dual-Path Architecture
+- **Path A: Direct Analytical Execution (< 2ms, 0 LLM Tokens)**:
+  - High-frequency factual queries (*class toppers, top/bottom ranks, overall pass rates, failure lists, student lookups, subject stats, gender comparisons, performance distributions*) are resolved deterministically using Python & Pandas.
+  - Zero LLM tokens consumed and zero inference wait time.
+- **Path B: LLM-Assisted Synthesis (Compact Verified Context)**:
+  - Open-ended, pedagogical, or multi-metric evaluation questions (*"How can we improve results?", "What are the department's weak areas?"*) pass a strictly bounded list of verified facts (~50-150 tokens) to locally hosted Ollama (`qwen3.5:4b`).
+  - Strict system prompt prevents hallucinations, recalculations, or internal chain-of-thought exposure.
+
+### 2. Conversation Awareness & Memory
+- Bounded conversation state tracks referenced entities, subjects, and analytical intents.
+- Resolves anaphoric follow-up queries:
+  - *User*: "Who is the class topper?"
+  - *User*: "What about the girls?" → *Auto-resolves to female topper*
+  - *User*: "Compare their marks" → *Auto-compares male vs female topper*
+
+### 3. Running Automated Tests
+Run the comprehensive test suite covering schema discovery, rankings, tied toppers, multi-condition filtering, comparisons, distributions, and follow-ups:
+
+```bash
+python tests/test_hybrid_engine.py
+```
+```
+
+---
+
 ## 🎨 UI Theme
 
-The interface uses a **dual-theme design** (light and dark) inspired by the **GAC Salem-7 collegiate color palette**:
+The interface uses a clean **collegiate light theme** inspired by the **GAC Salem-7 official color palette**:
 
-| Token | Dark Theme | Light Theme |
-|-------|-----------|-------------|
-| Background | `#0a0e17` (midnight) | `#f0f4ff` |
-| Header / Card | `#111827` | `#ffffff` |
-| Accent / Gold | `#ffb606` | `#b8860b` |
-| Primary Blue | `#2563eb` | `#1565c0` |
-| Success | `#10b981` | `#2e7d32` |
-| Text | `#e2e8f0` | `#1e293b` |
+| Token | Light Theme | Description |
+|-------|-------------|-------------|
+| Background | `#f4f6fa` | Crisp light background |
+| Header / Card | `#ffffff` | Clean elevated card surfaces |
+| Accent / Gold | `#ffb606` | Official collegiate gold accent |
+| Primary Blue | `#1565c0` | Department navy blue |
+| Success | `#2e7d32` | Forest green for passes |
+| Text | `#1e293b` | High-contrast slate text |
 
 ## 📝 License
 This project is built only for educational purpose.

@@ -4,32 +4,32 @@
    ================================================================ */
 
 :root {
-    --bg-primary: #0a0e17;
-    --bg-secondary: #101622;
-    --bg-card: rgba(16, 22, 34, 0.85);
-    --bg-glass: rgba(255, 255, 255, 0.04);
-    --bg-glass-border: rgba(255, 255, 255, 0.08);
-    --text-primary: #f1f5f9;
-    --text-secondary: #94a3b8;
+    --bg-primary: #f4f6fa;
+    --bg-secondary: #ffffff;
+    --bg-card: #ffffff;
+    --bg-glass: rgba(0, 0, 0, 0.03);
+    --bg-glass-border: #e2e8f0;
+    --text-primary: #1e293b;
+    --text-secondary: #475569;
     --text-muted: #64748b;
 
-    /* GAC Salem-7 Collegiate Dark Palette */
+    /* GAC Salem-7 Collegiate Official Light Palette */
     --gac-gold: #ffb606;
     --gac-gold-hover: #e6a303;
-    --gac-blue: #2563eb;
-    --gac-blue-light: #60a5fa;
-    --gac-navy-dark: #070a10;
+    --gac-blue: #1565c0;
+    --gac-blue-light: #e3f2fd;
+    --gac-navy-dark: #0a0e17;
 
-    --accent-indigo: #2563eb;
-    --accent-violet: #3b82f6;
-    --accent-cyan: #60a5fa;
-    --accent-emerald: #10b981;
-    --accent-rose: #ef4444;
+    --accent-indigo: #1565c0;
+    --accent-violet: #1976d2;
+    --accent-cyan: #0d47a1;
+    --accent-emerald: #2e7d32;
+    --accent-rose: #c62828;
     --accent-amber: #ffb606;
-    --gradient-primary: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
+    --gradient-primary: linear-gradient(135deg, #1565c0 0%, #1976d2 100%);
     --gradient-gold: linear-gradient(135deg, #ffb606 0%, #f59e0b 100%);
-    --gradient-success: linear-gradient(135deg, #059669 0%, #10b981 100%);
-    --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.45);
+    --gradient-success: linear-gradient(135deg, #2e7d32 0%, #43a047 100%);
+    --shadow-md: 0 4px 20px rgba(15, 23, 42, 0.08);
     --radius-sm: 8px;
     --radius-md: 12px;
     --radius-lg: 16px;
@@ -89,16 +89,6 @@
 [data-theme="light"] #logoGrad stop:last-child { stop-color: #1565c0; }
 [data-theme="light"] .navbar-brand svg {
     filter: drop-shadow(0 2px 6px rgba(255, 182, 6, 0.35));
-}
-[data-theme="light"] .btn-theme-toggle {
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 182, 6, 0.4);
-    color: #ffb606;
-}
-[data-theme="light"] .btn-theme-toggle:hover {
-    background: rgba(255, 182, 6, 0.2);
-    border-color: #ffb606;
-    transform: scale(1.05);
 }
 
 /* ── Light Theme: Background & Glow ────────────────────────── */
@@ -474,12 +464,6 @@ body {
 }
 .navbar-brand p { font-size: 0.75rem; color: var(--text-secondary); font-weight: 500; }
 
-.btn-theme-toggle {
-    background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 182, 6, 0.35); color: #ffb606;
-    width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.1rem;
-    display: flex; align-items: center; justify-content: center; transition: var(--transition-base);
-}
-.btn-theme-toggle:hover { background: rgba(255, 182, 6, 0.15); border-color: #ffb606; transform: scale(1.05); }
 
 /* ── Ask AI Button ────────────────────────────────────────────── */
 .btn-ask-ai {

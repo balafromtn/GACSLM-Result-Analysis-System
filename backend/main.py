@@ -52,6 +52,10 @@ from analytics import (
     build_academic_context_and_intent,
     sanitize_llm_response,
 )
+from intelligence import HybridIntelligenceDispatcher, ConversationMemory
+
+# Global active conversation memory
+conversation_memory = ConversationMemory()
 
 # ── Logging setup (file + console + in-memory ring buffer) ───────
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -152,6 +156,8 @@ def reset_state():
 
     with log_buffer_lock:
         log_buffer.clear()
+
+    conversation_memory.clear()
 
 
 # ── Endpoints ────────────────────────────────────────────────────────
@@ -260,6 +266,8 @@ async def start_scraping():
 
     with log_buffer_lock:
         log_buffer.clear()
+
+    conversation_memory.clear()
 
     thread = threading.Thread(target=_scrape_all, daemon=True)
     thread.start()
@@ -434,114 +442,33 @@ class ChatRequest(BaseModel):
 
 @app.post("/ask-ai")
 async def ask_ai(req: ChatRequest):
-    """Answer questions based on the scraped results using deterministic Python analytics + local Ollama."""
+    """Answer questions using the Generic Hybrid Academic Data Intelligence Engine."""
     with state_lock:
         results = state["results"]
 
     if not results:
         raise HTTPException(status_code=400, detail="No data available. Please scrape results first.")
 
-    api_base = LLM_API_BASE.rstrip("/")
-    if api_base.endswith("/chat/completions"):
-        endpoint = api_base
-    elif api_base.endswith("/v1"):
-        endpoint = f"{api_base}/chat/completions"
-    else:
-        endpoint = f"{api_base}/v1/chat/completions"
-
-    # Step 1: Compute verified academic metrics in Python (toppers, ranks, pass %, failed lists)
-    analytics = AcademicAnalytics(results)
-    verified_context, intent = build_academic_context_and_intent(req.question, analytics)
-
-    # Step 2: Formulate prompt with verified conclusions, forbidding raw thinking output
-    system_prompt = (
-        "You are an academic analysis assistant for student examination results. "
-        "You are provided with pre-calculated, verified academic facts and statistics.\n\n"
-        "STRICT GUIDELINES:\n"
-        "1. Answer the question directly, concisely, and accurately using ONLY the verified facts provided below.\n"
-        "2. Do NOT show any 'Thinking Process:', chain of thought, or step-by-step calculations.\n"
-        "3. Provide ONLY the final answer and a short natural-language explanation.\n"
-        "4. Format your answer with clean Markdown:\n"
-        "   - Separate paragraphs with a blank line.\n"
-        "   - When listing student details or statistics, put EACH attribute or item on its own new line starting with '* ' or '- '.\n"
-        "   - Never bunch multiple bullet points onto the same line.\n"
-        "   - Use **bold** for key names, register numbers, ranks, and totals.\n"
-        "5. If there is a tie, mention all tied students.\n"
-        "6. Never guess, invent, or recalculate totals or statistics.\n\n"
-        f"{verified_context}"
+    dispatcher = HybridIntelligenceDispatcher(
+        raw_results=results,
+        llm_api_base=LLM_API_BASE,
+        llm_model=LLM_MODEL,
+        llm_api_key=LLM_API_KEY,
+        llm_timeout=LLM_TIMEOUT,
+        memory=conversation_memory,
     )
 
-    headers = {"Content-Type": "application/json"}
-    if LLM_API_KEY:
-        headers["Authorization"] = f"Bearer {LLM_API_KEY}"
-
-    payload = {
-        "model": LLM_MODEL,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": req.question}
-        ],
-        "temperature": 0.1,
-        "keep_alive": "15m"
-    }
-
     try:
-        async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as client:
-            response = await client.post(endpoint, json=payload, headers=headers)
-
-            if response.status_code == 404:
-                error_detail = response.text
-                logger.error(f"Ollama model '{LLM_MODEL}' not found: {error_detail}")
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Model '{LLM_MODEL}' not found in Ollama. Run 'ollama pull {LLM_MODEL}' in your terminal."
-                )
-
-            response.raise_for_status()
-            data = response.json()
-
-            # Extract answer from OpenAI-compatible choices
-            raw_answer = ""
-            choices = data.get("choices", [])
-            if choices:
-                message = choices[0].get("message", {})
-                raw_answer = message.get("content") or ""
-                # If content is empty but reasoning is present, use reasoning as source
-                if not raw_answer and "reasoning" in message:
-                    raw_answer = message.get("reasoning", "")
-            else:
-                raw_answer = data.get("answer") or str(data)
-
-            # Sanitize response: strip any chain-of-thought or "Thinking Process:" artifacts
-            final_answer = sanitize_llm_response(raw_answer)
-
-            # Fallback if model output is blank or completely stripped of content
-            if not final_answer or "Thinking Process:" in final_answer:
-                clean_ctx = verified_context.replace("### Verified Academic Calculations: ", "")
-                clean_ctx = clean_ctx.replace("### Verified Academic Dataset Summary", "Class Summary:")
-                final_answer = clean_ctx.strip()
-
-            return {"answer": final_answer}
-
-    except httpx.ConnectError:
-        logger.error(f"Failed to connect to Ollama at {endpoint}")
-        raise HTTPException(
-            status_code=503,
-            detail=f"Could not connect to Ollama at {LLM_API_BASE}. Ensure Ollama is running locally (e.g., 'ollama serve')."
-        )
-    except httpx.TimeoutException:
-        logger.error(f"Ollama inference timed out after {LLM_TIMEOUT}s")
-        raise HTTPException(
-            status_code=504,
-            detail=f"Inference timed out after {int(LLM_TIMEOUT)} seconds. The model may still be loading or generating a response."
-        )
-    except httpx.HTTPStatusError as e:
-        logger.error(f"Ollama API HTTP Error: {e.response.status_code} - {e.response.text}")
-        raise HTTPException(status_code=e.response.status_code, detail=f"Ollama API Error: {e.response.text}")
-    except HTTPException:
-        raise
+        res = await dispatcher.process_query(req.question)
+        return {
+            "answer": res["answer"],
+            "path": res.get("path"),
+            "intent": res.get("intent"),
+            "tokens_consumed": res.get("tokens_consumed", 0),
+            "metrics": res.get("latency_ms", {}),
+        }
     except Exception as e:
-        logger.error(f"Unexpected error querying Ollama: {str(e)}", exc_info=True)
+        logger.error(f"Error in hybrid intelligence dispatcher: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to process query with AI service.")
 
 
